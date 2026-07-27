@@ -459,6 +459,7 @@
           <div class="summary-row" style="padding:6px 0;"><div class="summary-icon">🕙</div><div><div class="summary-k">FIRST SESSION</div><div class="summary-v" id="conf-session">—</div></div></div>
         </div>
         <div class="spacer"></div>
+        <button class="ctaBtn" onclick="goToHome()">Go to My Home Screen</button>
         <button class="ctaBtn">Add to Calendar</button>
         <button class="ghostBtn" onclick="restart()">Start Over</button>
       </div>
@@ -639,6 +640,9 @@
     const dateVal = document.getElementById('in-date').value;
     const timeText = state.slot ? state.slot.time : 'Time TBC';
     document.getElementById('conf-session').textContent = (dateVal||'Date TBC') + ' · ' + timeText + (isRegular?'':' IST');
+  }
+  function goToHome(){
+    window.parent.postMessage({ type: 'divya-yoga-onboarding-complete' }, window.location.origin);
   }
 
   renderNav();
