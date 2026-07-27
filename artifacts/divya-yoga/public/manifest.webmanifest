@@ -1,0 +1,24 @@
+{
+  "name": "Archana's Divya Yoga Studio",
+  "short_name": "Divya Yoga",
+  "description": "Personalized Yoga for Health, Fitness & Inner Balance",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F4EDE1",
+  "theme_color": "#4A5A33",
+  "icons": [
+    {
+      "src": "./icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

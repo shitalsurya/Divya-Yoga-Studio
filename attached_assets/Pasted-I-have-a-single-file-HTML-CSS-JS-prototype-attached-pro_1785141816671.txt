@@ -1,0 +1,57 @@
+I have a single-file HTML/CSS/JS prototype (attached: prototype.html) for the
+onboarding + booking flow of a yoga studio app called "Archana's Divya Yoga
+Studio." It's a fully working click-through prototype with 11 screens, state
+management in vanilla JS, and no external dependencies except Google Fonts.
+
+Convert this into an installable Progressive Web App (PWA) on Replit. Do NOT
+redesign or change any visual styling, copy, colors, fonts, screen logic,
+conditional flow (Regular Group Classes skip the Schedule and Participants
+screens; Personal Sessions go through all 11 screens), or pricing calculations.
+Preserve the exact HTML/CSS/JS as the source of truth — only add PWA
+infrastructure around it.
+
+Specifically:
+
+1. Set up the project structure so prototype.html becomes index.html at the
+   project root, served as a static site (simple Node/Express static server
+   or Replit's static deployment — whichever is simpler to run and preview
+   inside Replit).
+
+2. Create a manifest.json with:
+   - name: "Archana's Divya Yoga Studio"
+   - short_name: "Divya Yoga"
+   - theme_color and background_color matching the app's beige/olive palette
+     (#F4EDE1 background, #4A5A33 theme)
+   - display: "standalone"
+   - start_url: "/"
+   - icons: 192x192 and 512x512 (generate simple placeholder icons using the
+     🪷 lotus motif in the app's olive/sage color scheme if no icon assets
+     are provided — maskable variants too)
+
+3. Add a service worker (sw.js) that:
+   - Precaches index.html, manifest.json, and any local assets on install
+   - Serves cached content when offline (cache-first for static assets)
+   - Shows a simple offline fallback if a resource isn't cached
+   - Uses versioned cache names and cleans up old caches on activate
+
+4. Register the service worker in index.html and add the required PWA meta
+   tags to <head>: viewport, theme-color, apple-mobile-web-app-capable,
+   apple-mobile-web-app-status-bar-style, apple-touch-icon, and link to
+   manifest.json.
+
+5. Add a lightweight custom "Install App" button that listens for the
+   beforeinstallprompt event and triggers the native install prompt — style
+   it to match the existing design system (olive button, rounded, matches
+   the existing .ctaBtn look) rather than using a browser-default banner.
+
+6. Make sure the app passes the core Lighthouse PWA checklist: installable,
+   works offline, fast first load, valid manifest, https (Replit's own
+   domain already provides this).
+
+7. Keep everything mobile-first — the phone-frame decorative bezel in the
+   CSS should only apply above ~600px viewports (this is already handled in
+   the existing CSS via a media query, so don't remove it).
+
+After setup, give me: the final file structure, how to preview it in
+Replit's webview, and how to test the install prompt and offline mode in
+Chrome DevTools (Application tab → Manifest / Service Workers).

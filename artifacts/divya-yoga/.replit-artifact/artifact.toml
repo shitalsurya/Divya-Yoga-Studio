@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Archana's Divya Yoga Studio"
+version = "1.0.0"
+id = "artifacts/divya-yoga"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23739
+
+[services.development]
+run = "pnpm --filter @workspace/divya-yoga run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/divya-yoga", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/divya-yoga/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23739"
+BASE_PATH = "/"
