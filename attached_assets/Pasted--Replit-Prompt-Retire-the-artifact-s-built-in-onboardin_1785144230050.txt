@@ -1,0 +1,279 @@
+# Replit Prompt: Retire the artifact's built-in onboarding, wire our own onboarding into its Home screen
+
+## Context
+
+This project has two onboarding flows and we only want one:
+
+1. **Our real onboarding flow** — already implemented in this Replit project,
+   originally built from `Archanas-Divya-Yoga-Clickable-Prototype.html`. It has
+   11 screens driven by a `state` object and two flows:
+   - `FLOW_PERSONAL = [1,2,3,4,5,6,7,8,9,10,11]`
+   - `FLOW_REGULAR  = [1,2,3,4,7,8,9,10,11]`
+   Screen 11 is the final "Booking Request Confirmed!" success screen
+   (`<div class="scr" data-n="11">`), currently ending in two buttons:
+   `Add to Calendar` and `Start Over` (`restart()`).
+
+2. **A second, older onboarding flow baked into `yoga-app-mockup.jsx`** — a
+   11-screen flow (Welcome → Choose Class Type → Goals → … → Ready to Begin)
+   implemented as React components: `OnboardingFlow`, `OnboardingShell`,
+   `OnboardingProgress`, `SelectableRow`, `OnboardingPrimaryButton`,
+   `OnboardingSecondaryLink`, plus its data constants (`ONBOARDING_GOAL_OPTIONS`,
+   `ONBOARDING_EXPERIENCE_OPTIONS`, `ONBOARDING_PRACTICE_TIME_OPTIONS`,
+   `ONBOARDING_INTEREST_OPTIONS`, `ONBOARDING_WEEKLY_GOAL_OPTIONS`,
+   `ONBOARDING_NOTIFICATION_LABELS`, `ONBOARDING_REC_MAP`,
+   `getOnboardingRecommendations`). This is **not needed anymore** — remove it.
+
+   The file also has a root wrapper at the very bottom:
+
+   ```jsx
+   export default function DivyaYogaApp() {
+     const [phase, setPhase] = useState("onboarding"); // "onboarding" | "app"
+     return phase === "onboarding" ? <OnboardingFlow onComplete={() => setPhase("app")} /> : <MainApp />;
+   }
+   ```
+
+   `MainApp` (Home, Workshops, Practice, Library, Profile tabs and all their
+   overlays) does **not** depend on anything in the onboarding block — it's
+   fully self-contained.
+
+## Goal
+
+- Delete the entire old onboarding block from `yoga-app-mockup.jsx`.
+- Make `MainApp` the thing that renders once our real onboarding finishes.
+- On our real onboarding's screen 11, add a **"Go to My Home Screen"** button
+  that ends onboarding and lands the user on the artifact's Home tab.
+- Keep everything else — our 11-screen flow, its regular/personal branching,
+  pricing logic, styling, animations — exactly as it is. This is a surgical
+  removal + one new wiring point, not a rebuild.
+
+## Step 1 — Strip the old onboarding out of `yoga-app-mockup.jsx`
+
+Open `yoga-app-mockup.jsx` and delete everything from this comment block:
+
+```jsx
+// =========================================================================
+// ONBOARDING FLOW — 11 screens shown before the main app, matching the
+// production Expo Router flow delivered separately. This version keeps
+// step/answer state locally with useState so it can render live here;
+// the RN version persists the same shape to AsyncStorage.
+// =========================================================================
+```
+
+...down through the end of the `OnboardingFlow` component's closing brace —
+i.e. everything *up to but not including* `function MainApp() {`.
+
+Concretely, that means deleting these top-level declarations (all of them
+live consecutively in that one block, nothing else in the file references
+them):
+
+- `ONBOARDING_GOAL_OPTIONS`
+- `ONBOARDING_EXPERIENCE_OPTIONS`
+- `ONBOARDING_PRACTICE_TIME_OPTIONS`
+- `ONBOARDING_INTEREST_OPTIONS`
+- `ONBOARDING_WEEKLY_GOAL_OPTIONS`
+- `ONBOARDING_NOTIFICATION_LABELS`
+- `ONBOARDING_REC_MAP`
+- `getOnboardingRecommendations(goals)`
+- `OnboardingProgress({ step, total })`
+- `OnboardingShell({ step, eyebrow, heading, subheading, onBack, footer, children })`
+- `SelectableRow({ label, selected, onClick, mode })`
+- `OnboardingPrimaryButton({ label, onClick, disabled })`
+- `OnboardingSecondaryLink({ label, onClick })`
+- `OnboardingFlow({ onComplete })`
+
+Do not touch `MainApp` or anything above the `ONBOARDING FLOW` comment
+(`TABS`, all the tab screens, all data constants like `WORKSHOPS`,
+`REFERRAL_*`, `NOTIFICATION_*`, etc.) — none of it is part of the onboarding
+block and all of it is still needed by `MainApp`.
+
+## Step 2 — Simplify the root export
+
+At the very bottom of `yoga-app-mockup.jsx`, replace:
+
+```jsx
+export default function DivyaYogaApp() {
+  const [phase, setPhase] = useState("onboarding"); // "onboarding" | "app"
+  return phase === "onboarding" ? <OnboardingFlow onComplete={() => setPhase("app")} /> : <MainApp />;
+}
+```
+
+with a direct export of `MainApp`. Two acceptable ways to do this — pick
+whichever is more consistent with how the rest of the project imports this
+file:
+
+```jsx
+// Option A: just export MainApp directly
+export default MainApp;
+```
+
+```jsx
+// Option B: keep a thin wrapper (useful if you later want to add
+// providers/analytics init at the root without touching MainApp itself)
+export default function DivyaYogaApp() {
+  return <MainApp />;
+}
+```
+
+Also remove the now-unused `useState` import if `MainApp` doesn't need it
+directly elsewhere in the file (check before removing — `MainApp` likely
+still uses `useState` internally for its own tab/overlay state, in which
+case leave the import alone).
+
+## Step 3 — Find how our real onboarding currently hands off, and where `MainApp` is mounted
+
+Locate wherever this project currently renders the artifact/`yoga-app-mockup.jsx`
+component (likely the project's root `App.jsx`/`App.tsx` or a page/route
+file). Note its import path and export name — you'll need it in Step 5.
+
+Also locate the React component(s) that make up our real onboarding flow —
+the converted version of `Archanas-Divya-Yoga-Clickable-Prototype.html`. Look
+for the equivalent of the original's `state` object (fields: `classType`,
+`goals`, `health`, `notes`, `schedule`, `participants`, `slot`, `consent`,
+`screen`), the `FLOW_PERSONAL`/`FLOW_REGULAR` arrays, and whatever component
+renders screen 11 (the "Booking Request Confirmed!" success screen). Note
+how that component currently signals "onboarding is done" back up to its
+parent, if it does at all — if there's no such callback yet, you'll add one
+in Step 5.
+
+## Step 4 — Add "Go to My Home Screen" to onboarding screen 11
+
+Find the React component that renders screen 11 (the "Booking Request
+Confirmed!" success screen — checkmark icon, plan/session summary card).
+It currently ends with two buttons equivalent to the original prototype's:
+
+```html
+<button class="ctaBtn">Add to Calendar</button>
+<button class="ghostBtn" onclick="restart()">Start Over</button>
+```
+
+Add a new **primary** CTA above those two, using whatever button
+component/class this project already uses for primary actions elsewhere in
+onboarding (so it matches the existing design system exactly — don't invent
+a new style):
+
+```jsx
+<PrimaryButton label="Go to My Home Screen" onPress={handleGoToHomeScreen} />
+{/* existing Add to Calendar / Start Over buttons stay as-is below this, unchanged */}
+```
+
+If this screen doesn't already receive a completion callback as a prop, add
+one (e.g. `onFinish` or `onComplete`) and pass `handleGoToHomeScreen` down to
+it from whatever parent component owns the onboarding flow's top-level
+state/step logic.
+
+## Step 5 — Wire the button to actually mount the Home screen
+
+The exact wiring depends on whether onboarding and the main app currently
+live in the same React tree or are separate pages/routes in this Replit
+project. Implement whichever matches:
+
+**If this is a single-page app with local state deciding what to render**
+(most likely, given the artifact's own removed wrapper used this pattern):
+
+```jsx
+// Wherever the root component currently decides "show onboarding vs show app"
+const [showOnboarding, setShowOnboarding] = useState(true);
+
+return showOnboarding
+  ? <OurRealOnboardingFlow onFinish={() => setShowOnboarding(false)} />
+  : <MainApp />; // from yoga-app-mockup.jsx
+```
+
+Then `goToHomeScreen()` / `handleGoToHomeScreen` just needs to call that
+`onFinish` callback.
+
+**If this project uses client-side routing** (e.g. React Router / Wouter /
+whatever Replit scaffolded):
+
+```jsx
+// onboarding screen 11
+const navigate = useNavigate(); // or equivalent
+function handleGoToHomeScreen() {
+  navigate("/home"); // wherever MainApp is mounted
+}
+```
+
+Make sure the onboarding route/component fully unmounts (don't leave it
+mounted underneath) so its internal `state` object and screen refs get
+garbage-collected cleanly — no need to persist onboarding progress once the
+user reaches Home.
+
+## Step 6 — Keep everything inside the one existing PWA (don't create a second app)
+
+The onboarding flow Replit already built is a PWA (has its own
+`manifest.json` + service worker/install prompt). `MainApp` must live
+**inside that same PWA** — not as a separately hosted app, a different
+`manifest.json`, or a full page reload/redirect to another origin/build.
+
+Concretely:
+
+- **One `manifest.json` for the whole thing.** Do not add a second manifest
+  for `MainApp`. If `MainApp` needs its own icons/theme colors, update the
+  existing manifest's `icons`, `theme_color`, and `background_color` to
+  values that make sense across both onboarding and the tab app (the app's
+  cream `#F5F0E3` / forest green `#3F5942` palette), rather than introducing
+  a second manifest file.
+- **One service worker scope.** Whatever service worker Replit set up for
+  onboarding (Workbox, `vite-plugin-pwa`, a hand-rolled `sw.js`, etc.) needs
+  its cache/precache list extended to include `MainApp`'s routes, JS
+  chunks, and any images/icons it uses — not a second, separate service
+  worker registration. Two competing service workers on the same origin
+  will fight over the scope and break installability.
+- **The transition in Step 5 must stay client-side.** "Go to My Home
+  Screen" should change what's rendered inside the existing React tree
+  (state toggle or client-side route change) — it must **not** do a full
+  `window.location` redirect to a different URL/build, since that would
+  exit the installed PWA's app shell and could trigger a fresh network
+  load outside the service worker's control.
+- **`start_url` stays pointed at onboarding's entry**, since that's the
+  PWA's current root — but the app must remember once a user has completed
+  onboarding so reopening the installed PWA later goes straight to Home
+  instead of showing onboarding again:
+
+  ```jsx
+  // On "Go to My Home Screen":
+  localStorage.setItem("divya_yoga_onboarding_complete", "true");
+
+  // At the PWA's root, before deciding what to render:
+  const [showOnboarding, setShowOnboarding] = useState(
+    () => localStorage.getItem("divya_yoga_onboarding_complete") !== "true"
+  );
+  ```
+
+- **Offline behavior for `MainApp`.** Since Home/Workshops/Practice/
+  Library/Profile are all local component state today (no real backend
+  calls yet), they should work offline automatically once their JS/CSS/
+  image assets are precached by the service worker — confirm this by
+  toggling offline mode in DevTools after installing the PWA and
+  navigating through all five tabs.
+- **Verify installability is unaffected.** After wiring `MainApp` in, run
+  a Lighthouse PWA audit (or Chrome's "Install app" prompt) again to
+  confirm the app is still installable and passes the same checks it did
+  before this change — the goal is one seamless installable app, not two.
+
+## Step 7 — Sanity checks before calling this done
+
+- [ ] Only **one** onboarding flow exists in the codebase — search the project
+      for `OnboardingFlow`, `ONBOARDING_GOAL_OPTIONS`, and `data-n="1"` to
+      confirm the old artifact-embedded flow is fully gone and only our real
+      flow remains.
+- [ ] `yoga-app-mockup.jsx` still exports something that renders `MainApp`
+      with no console errors about missing `OnboardingFlow`/`ONBOARDING_*`
+      references.
+- [ ] Tapping "Go to My Home Screen" on our onboarding's last screen lands
+      directly on the artifact's Home tab (greeting, Today's Practice card,
+      Upcoming Workshop, Refer & Earn, etc. — all visible).
+- [ ] "Add to Calendar" and "Start Over" on the last screen still work as
+      before and are unaffected by the new button.
+- [ ] Regular vs. Personal class-type branching in our onboarding (screens
+      1,2,3,4 → then 7,8,9,10,11 for Regular, or the full 1–11 for Personal)
+      is untouched — this change only affects screen 11's buttons and the
+      final hand-off, nothing about flow branching or pricing logic.
+- [ ] Only one `manifest.json` and one active service worker exist in the
+      project — no second PWA was accidentally created for `MainApp`.
+- [ ] The app is still installable (Chrome install prompt / Lighthouse PWA
+      audit passes) after wiring `MainApp` in.
+- [ ] Installing the PWA, completing onboarding, closing it, and reopening
+      it lands directly on Home — onboarding does not replay.
+- [ ] All five tabs (Home, Workshops, Practice, Library, Profile) render
+      correctly with the network disabled (DevTools → Offline).
