@@ -1,0 +1,27 @@
+Please do the following four things in one pass. Don't stop to ask clarifying questions — use the defaults specified below wherever a decision is needed. At the end, give me a single summary report (what was added/fixed, what was tested, pass/fail for each item) rather than a running commentary.
+1. Remove the fake phone-frame mockup and make it a real responsive PWA
+This component was built as a static mockup wrapped in a fake "phone frame" — a fixed 390×780px box with a dark bezel, border-radius, box-shadow, and a decorative notch element, meant to look like a phone screenshot. Fix this:
+Delete the notch <div> (the small dark pill element near the top).
+On the outermost app container, remove the fixed width/height (390×780), border, border-radius, and box-shadow.
+Replace with a real responsive shell: width: 100%; max-width: 480px; margin: 0 auto; height: 100dvh; — full-bleed on phones, capped and centered on desktop so content doesn't stretch edge-to-edge on a wide browser.
+Set html, body { margin: 0; height: 100%; }, and give the page background outside the 480px column a neutral fill so it looks intentional on wide screens.
+Add <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">.
+Add padding-top: env(safe-area-inset-top) to the top header and padding-bottom: env(safe-area-inset-bottom) to the bottom tab bar, so content clears a real notch/home-indicator.
+Replace any hardcoded pixel widths on horizontally-scrolling card carousels (e.g. workshop/class cards, currently ~176px) with clamp(150px, 42vw, 190px) so they scale on small phones and don't overgrow on tablets.
+Verify: app fills the real viewport on mobile with no visible frame/bezel, stays centered and readable on desktop, and no overlay/modal misposition relative to the app container.
+2. Add language support (i18n)
+Support 3 languages: English (default), Hindi, Marathi.
+Lightweight approach: one JSON dictionary per language (en.json, hi.json, mr.json) with key-based lookups via a simple context/hook — don't add a heavy library like react-i18next unless one's already in the project.
+Add a language switcher in the Profile screen; persist choice to local storage; default to English if nothing saved.
+Translate static UI text (nav labels, buttons, headings, batch/workshop copy). Leave dynamic data (names, times, prices) as-is.
+3. Implement and test notifications
+Wire up real browser push notifications using the Notification API + service worker (this is a PWA, so it needs this regardless).
+Request permission from a user action (e.g. a toggle in Profile), not automatically on load.
+Implement and test: batch reminder (30 min before class), workshop registration confirmation, waitlist-seat-opened, and streak/attendance nudge.
+Add a temporary "Send test notification" button (behind a debug flag) that fires all 4 types on demand for easy verification.
+Test on both desktop browser and a mobile device/emulator; report which types fired correctly and any browser/OS gaps.
+4. End-to-end test: onboarding → sign-in
+Check what auth currently exists. If none, add a minimal one (email/phone + OTP or password — whichever is faster with what's already in the project; a stubbed/mocked backend is fine).
+Run the full flow once as a new user: Onboarding (Welcome → Goal → Experience → Interests → Time → Health → Summary → Done) → Sign-in/account creation → personalized Home screen.
+Confirm onboarding selections persist into the signed-in session, and a page refresh after sign-in doesn't drop the user back to onboarding.
+Report pass/fail for each step, and flag anything that broke or dead-ended.

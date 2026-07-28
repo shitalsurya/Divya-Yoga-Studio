@@ -23,25 +23,35 @@
 }
 
 html,
-body,
-#root {
-  width: 100%;
-  min-height: 100%;
+body {
   margin: 0;
+  height: 100%;
 }
 
 body {
   overflow: hidden;
-  background: hsl(var(--background));
+  /* Neutral fill shown on wide screens outside the 480px app column */
+  background: #2A2420;
   color: hsl(var(--foreground));
   font-family: var(--app-font-sans);
+  display: flex;
+  justify-content: center;
+}
+
+#root {
+  width: 100%;
+  max-width: 480px;
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
 }
 
 .prototype-shell {
   position: relative;
   width: 100%;
-  min-height: 100dvh;
+  height: 100dvh;
   overflow: hidden;
+  background: #F5F0E3;
 }
 
 .prototype-frame {

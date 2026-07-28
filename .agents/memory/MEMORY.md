@@ -1,0 +1,1 @@
+- [Divya Yoga PWA architecture](divya-yoga-pwa.md) — auth flow, i18n, notifications, and frame-removal decisions for the main app.

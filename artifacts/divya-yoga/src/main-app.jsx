@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useLanguage, LANG_OPTIONS } from "./i18n/LanguageContext";
+import { requestPermission, getPermissionState, sendTestNotifications } from "./lib/notifications";
 import {
   Home as HomeIcon,
   Calendar,
@@ -942,7 +944,7 @@ function Chip({ theme = "light", active, children, onClick }) {
 
 function CreamHeader({ onOpenNotifications, unreadCount = 0 }) {
   return (
-    <div className="flex items-center justify-between px-5 py-3" style={{ background: L.bg, borderBottom: `1px solid ${L.line}` }}>
+    <div className="flex items-center justify-between px-5 py-3" style={{ paddingTop: "max(12px, env(safe-area-inset-top))", background: L.bg, borderBottom: `1px solid ${L.line}` }}>
       <div className="flex items-center gap-2">
         <span style={{ fontSize: 18 }}>🧘‍♀️</span>
         <span>
@@ -1386,6 +1388,21 @@ function NotificationCenterScreen({ prefs, onClose, onOpenTarget }) {
 }
 
 function NotificationPreferencesScreen({ prefs, onTogglePref, onClose }) {
+  const [permission, setPermission] = useState(() => getPermissionState());
+  const [testSent, setTestSent] = useState(false);
+  const isDebug = localStorage.getItem("divya_debug") === "true";
+
+  const handleRequestPermission = async () => {
+    const result = await requestPermission();
+    setPermission(result);
+  };
+
+  const handleTestNotifications = async () => {
+    await sendTestNotifications();
+    setTestSent(true);
+    setTimeout(() => setTestSent(false), 3000);
+  };
+
   return (
     <div className="absolute inset-0 flex flex-col" style={{ background: L.bg, zIndex: 30 }}>
       <LightPageTitle
@@ -1395,6 +1412,42 @@ function NotificationPreferencesScreen({ prefs, onTogglePref, onClose }) {
         onBack={onClose}
       />
       <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2.5">
+
+        {/* OS-level push permission row */}
+        <div
+          className="flex items-center gap-3 p-3.5 rounded-2xl"
+          style={{
+            background: permission === "granted" ? L.greenSoft : L.surface,
+            border: `1.5px solid ${permission === "granted" ? L.green : L.line}`,
+          }}
+        >
+          <div className="flex-1">
+            <p style={{ ...display, color: L.ink, fontSize: 14 }}>Enable Push Notifications</p>
+            <p style={{ ...body, color: L.inkSoft, fontSize: 11.5, marginTop: 2, lineHeight: 1.35 }}>
+              {permission === "granted"
+                ? "✓ System notifications are enabled"
+                : permission === "denied"
+                ? "Blocked in browser — enable in device Settings"
+                : "Allow notifications to get class reminders and updates"}
+            </p>
+          </div>
+          {permission === "default" && (
+            <button
+              onClick={handleRequestPermission}
+              className="px-3 py-2 rounded-full shrink-0"
+              style={{ ...body, background: L.green, color: "#FFFFFF", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}
+            >
+              Allow
+            </button>
+          )}
+          {permission === "granted" && (
+            <span style={{ color: L.green, fontSize: 18 }}>✓</span>
+          )}
+          {permission === "denied" && (
+            <span style={{ fontSize: 16 }}>🚫</span>
+          )}
+        </div>
+
         {NOTIFICATION_CATEGORIES.map((c) => (
           <div key={c.id} className="flex items-center gap-3 p-3.5 rounded-2xl" style={{ background: L.surface, border: `1px solid ${L.line}` }}>
             <div className="flex-1">
@@ -1404,6 +1457,26 @@ function NotificationPreferencesScreen({ prefs, onTogglePref, onClose }) {
             <ToggleSwitch on={prefs[c.id]} onChange={(next) => onTogglePref(c.id, next)} />
           </div>
         ))}
+
+        {/* Debug-only test button — expose by setting localStorage.divya_debug = "true" */}
+        {isDebug && (
+          <button
+            onClick={handleTestNotifications}
+            disabled={permission !== "granted"}
+            className="w-full py-3 rounded-2xl mt-2"
+            style={{
+              ...body,
+              background: permission === "granted" ? L.green : L.line,
+              color: permission === "granted" ? "#FFFFFF" : L.inkSoft,
+              fontWeight: 700,
+              fontSize: 14,
+              border: "none",
+              cursor: permission === "granted" ? "pointer" : "default",
+            }}
+          >
+            {testSent ? "✓ Test notifications sent!" : "Send Test Notifications"}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1622,7 +1695,7 @@ function WorkshopsScreen({ onOpenWorkshop, onOpenRecordings }) {
               key={w.id}
               onClick={() => onOpenWorkshop(w)}
               className="text-left rounded-2xl p-3.5 shrink-0"
-              style={{ background: L.surface, width: 176, border: `1px solid ${L.line}` }}
+              style={{ background: L.surface, width: "clamp(150px, 42vw, 190px)", border: `1px solid ${L.line}` }}
             >
               <div className="flex items-center justify-between">
                 <span style={{ fontSize: 20 }}>{w.ic}</span>
@@ -2756,7 +2829,7 @@ function FeaturedProgramsRail() {
               key={p.id}
               onClick={() => trackEvent("program_opened", { title: p.title })}
               className="text-left rounded-2xl p-3.5 shrink-0"
-              style={{ background: L.surface, width: 188, border: `1px solid ${L.line}` }}
+              style={{ background: L.surface, width: "clamp(150px, 42vw, 190px)", border: `1px solid ${L.line}` }}
             >
               <div className="flex items-center justify-between">
                 <span style={{ fontSize: 22 }}>{p.ic}</span>
@@ -3107,6 +3180,38 @@ function LogoutScreen({ onCancel, onConfirmed }) {
 }
 
 
+function LanguageSwitcher() {
+  const { lang, setLang } = useLanguage();
+  return (
+    <div className="w-full flex items-center gap-3 p-3.5 rounded-2xl" style={{ background: L.surface, border: `1px solid ${L.line}` }}>
+      <div className="p-2 rounded-full" style={{ background: L.greenSoft }}>
+        <span style={{ fontSize: 14 }}>🌐</span>
+      </div>
+      <span style={{ ...body, color: L.ink, fontSize: 13, fontWeight: 500, flex: 1 }}>Language</span>
+      <div className="flex gap-1.5">
+        {LANG_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setLang(opt.value)}
+            className="px-2.5 py-1 rounded-full"
+            style={{
+              ...body,
+              fontSize: 11,
+              fontWeight: 700,
+              background: lang === opt.value ? L.green : L.greenSoft,
+              color: lang === opt.value ? "#FFFFFF" : L.green,
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProfileScreen({ onOpenReferralHub, onOpenNotificationPrefs, onOpenProfileOverlay }) {
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: L.bg }}>
@@ -3155,6 +3260,7 @@ function ProfileScreen({ onOpenReferralHub, onOpenNotificationPrefs, onOpenProfi
         </button>
 
         <p style={{ ...body, color: L.inkSoft, fontSize: 11, fontWeight: 700, letterSpacing: 1, marginTop: 10 }}>SETTINGS</p>
+        <LanguageSwitcher />
         <Row icon={Bell} title="Notifications" sub="Class, workshop, video, and streak alerts" onClick={onOpenNotificationPrefs} />
         <Row icon={ShieldCheck} title="Privacy Policy" onClick={() => onOpenProfileOverlay("privacy")} />
         <Row icon={FileText} title="Terms & Conditions" onClick={() => onOpenProfileOverlay("terms")} />
@@ -3227,6 +3333,7 @@ function MainApp() {
   };
 
   const unreadCount = NOTIFICATION_FEED.filter((n) => notificationPrefs[n.category] && !readNotificationIds.includes(n.feedId)).length;
+  const { translate } = useLanguage();
 
   const screens = {
     home: (
@@ -3253,23 +3360,10 @@ function MainApp() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-6" style={{ background: "#0E0B08", ...body }}>
-      <div
-        className="relative flex flex-col overflow-hidden"
-        style={{
-          width: 390,
-          height: 780,
-          background: L.bg,
-          borderRadius: 40,
-          border: "10px solid #0E0B08",
-          boxShadow: "0 30px 60px rgba(0,0,0,0.55)",
-        }}
-      >
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-40" style={{ width: 120, height: 22, background: "#0E0B08", borderRadius: "0 0 16px 16px" }} />
+    <div className="relative flex flex-col" style={{ height: "100dvh", background: L.bg, ...body }}>
+      <CreamHeader onOpenNotifications={() => setShowNotificationCenter(true)} unreadCount={unreadCount} />
 
-        <CreamHeader onOpenNotifications={() => setShowNotificationCenter(true)} unreadCount={unreadCount} />
-
-        <div className="relative flex-1 flex flex-col overflow-hidden">
+      <div className="relative flex-1 flex flex-col overflow-hidden">
           {screens[tab]}
           {openBatch && <BatchDetail batch={openBatch} onClose={() => setOpenBatch(null)} />}
           {openWorkshop && (
@@ -3335,7 +3429,7 @@ function MainApp() {
           )}
         </div>
 
-        <div className="flex justify-around items-center py-3 px-2" style={{ background: L.surface, borderTop: `1px solid ${L.line}` }}>
+        <div className="flex justify-around items-center px-2" style={{ background: L.surface, borderTop: `1px solid ${L.line}`, paddingTop: 10, paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}>
           {TABS.map((t) => {
             const active = tab === t.id;
             return (
@@ -3348,13 +3442,12 @@ function MainApp() {
               >
                 <t.icon size={19} color={active ? L.green : L.inkSoft} />
                 <span style={{ ...body, fontSize: 10, color: active ? L.ink : L.inkSoft, fontWeight: active ? 600 : 400 }}>
-                  {t.label}
+                  {translate(`nav_${t.id}`)}
                 </span>
               </button>
             );
           })}
         </div>
-      </div>
     </div>
   );
 }

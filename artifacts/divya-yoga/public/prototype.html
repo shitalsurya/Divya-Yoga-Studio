@@ -17,30 +17,20 @@
 
   .stage{
     min-height:100%;
-    display:flex; align-items:center; justify-content:center;
-    padding:18px;
+    display:flex; align-items:stretch; justify-content:center;
+    padding:0;
   }
   .device{
-    width:100%; max-width:390px;
+    width:100%;
     background:var(--white);
-    border-radius:0px;
+    border-radius:0;
     overflow:hidden;
     position:relative;
     box-shadow:none;
-    height:100vh; max-height:844px;
+    min-height:100vh;
     display:flex; flex-direction:column;
   }
-  /* On roomier viewports (desktop preview) render it like a phone with a frame */
-  @media (min-width:600px){
-    .stage{ padding:40px; }
-    .device{
-      border-radius:38px; border:8px solid #111;
-      height:820px; max-height:820px;
-      box-shadow:0 30px 60px rgba(0,0,0,.25);
-    }
-    .notch{ display:block; }
-  }
-  .notch{ display:none; position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:22px; background:#111; border-radius:0 0 16px 16px; z-index:20; }
+  .notch{ display:none; }
 
   .topbar{
     display:flex; align-items:center; justify-content:space-between;
@@ -642,7 +632,16 @@
     document.getElementById('conf-session').textContent = (dateVal||'Date TBC') + ' · ' + timeText + (isRegular?'':' IST');
   }
   function goToHome(){
-    window.parent.postMessage({ type: 'divya-yoga-onboarding-complete' }, window.location.origin);
+    const onboarding = {
+      classType: state.classType,
+      goals: [...state.goals],
+      health: [...state.health],
+      notes: state.notes,
+      schedule: state.schedule,
+      participants: state.participants,
+      slot: state.slot,
+    };
+    window.parent.postMessage({ type: 'divya-yoga-onboarding-complete', onboarding }, window.location.origin);
   }
 
   renderNav();

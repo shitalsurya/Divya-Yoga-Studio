@@ -1,4 +1,4 @@
-const CACHE_NAME = 'divya-yoga-shell-v1';
+const CACHE_NAME = 'divya-yoga-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -48,12 +48,37 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           if (event.request.mode === 'navigate') {
             return new Response(
-              '<!doctype html><html lang="en"><meta charset="utf-8"><title>Divya Yoga is offline</title><body style="margin:0;background:#F4EDE1;color:#4A5A33;font:16px Inter, sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center"><main><h1>You are offline</h1><p>Reconnect to open Archana’s Divya Yoga Studio.</p></main></body></html>',
+              '<!doctype html><html lang="en"><meta charset="utf-8"><title>Divya Yoga is offline</title><body style="margin:0;background:#F4EDE1;color:#4A5A33;font:16px Inter, sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center"><main><h1>You are offline</h1><p>Reconnect to open Archana\'s Divya Yoga Studio.</p></main></body></html>',
               { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
             );
           }
           return new Response('', { status: 503, statusText: 'Offline' });
         });
     }),
+  );
+});
+
+// Handle notification tap — focus the app window or open a new one.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const action = event.notification.data?.action ?? '';
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Prefer an already-open window
+        for (const client of clientList) {
+          if ('focus' in client) {
+            // Post the deep-link action so the app can navigate to the right tab
+            client.postMessage({ type: 'notification-action', action });
+            return client.focus();
+          }
+        }
+        // No open window — open a new one
+        const url = self.registration.scope + (action ? `#${action}` : '');
+        return clients.openWindow(url);
+      }),
   );
 });
