@@ -1,0 +1,24 @@
+A prior session was cut off mid-edit by a quota limit while writing changes to artifacts/divya-yoga/src/main-app.jsx. The app currently fails to build/serve (HTTP 502). The following backend pieces already landed successfully and should NOT be redone:
+
+artifacts/api-server/src/routes/check-in.ts — check-in route, already working
+artifacts/api-server/src/routes/practice.ts — /api/practice/summary route, already created
+artifacts/api-server/src/routes/index.ts — route registration, already updated
+lib/db/src/schema/index.ts — booking_sessions table, already added
+Step 1 — Diagnose and fix the build
+Check the server/build console output for the actual syntax or runtime error.
+The most likely cause: an incomplete edit to artifacts/divya-yoga/src/main-app.jsx (mismatched braces, an import added but not used correctly, or a partially-replaced function) from the interrupted write.
+Fix whatever is broken so the app builds and the preview loads successfully. Confirm the preview actually loads before moving to Step 2.
+Step 2 — Verify and complete the frontend wiring
+
+Once the build is fixed, check each of these six components in main-app.jsx against the current file content (line numbers may have shifted — locate by function name, not the numbers below) and complete any that are still using hardcoded constants instead of fetching from GET /api/practice/summary:
+
+WeeklyGoalHero()
+ProgressSnapshot()
+GoalJourneyCard()
+MonthlyInsights()
+MilestoneTracker()
+AttendanceHistoryCalendar()
+
+For each: fetch from /api/practice/summary via the existing lib/api-client-react client, add a loading state, and remove the corresponding hardcoded constant (WEEKLY_GOAL, PRACTICE_LEVELS, CURRENT_LEVEL, GOAL_JOURNEY, MONTHLY_INSIGHTS, PRACTICE_MILESTONES, ATTENDANCE_CALENDAR) once nothing references it. Do not touch components that are already correctly wired — only fix what's incomplete or broken.
+
+Do not redo the backend route, schema, or route registration — those already exist and work. Keep this scoped to fixing the build and finishing the frontend wiring only.

@@ -727,25 +727,29 @@ function getDailyWellnessTip() {
 // habit-formation surfaces, deliberately light on raw historical stats.
 // =========================================================================
 
-const WEEKLY_GOAL = { completed: 4, target: 5 };
+// ---- usePracticeSummary — fetches /api/practice/summary with Bearer auth ----
+function usePracticeSummary() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-// Gamified level system — computed from attendance, workshops, library
-// consumption, and streaks in a real backend; hardcoded here for the mockup.
-const PRACTICE_LEVELS = [
-  { level: 1, label: "Beginner" },
-  { level: 2, label: "Committed Practitioner" },
-  { level: 3, label: "Dedicated Yogi" },
-  { level: 4, label: "Wellness Champion" },
-  { level: 5, label: "Master Practitioner" },
-];
-const CURRENT_LEVEL = PRACTICE_LEVELS[2]; // Level 3
+  useEffect(() => {
+    let cancelled = false;
+    const token = localStorage.getItem("divya_yoga_session");
+    fetch("/api/practice/summary", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
+      .catch((e) => { if (!cancelled) { setError(e); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, []);
 
-const GOAL_JOURNEY = {
-  goal: "Weight Loss",
-  progress: 68,
-  weeklyTarget: 5,
-  monthlyTarget: 20,
-};
+  return { data, loading, error };
+}
 
 const RECOMMENDED_PRACTICE = {
   title: "15-Min Morning Stretch",
@@ -771,17 +775,6 @@ const PRACTICE_BADGES = [
   { id: 6, name: "100 Classes Completed", ic: "🏅", earned: false },
 ];
 
-const MONTHLY_INSIGHTS = [
-  "You attended 18 sessions this month.",
-  "Your consistency improved by 15%.",
-  "You completed 4 more classes than last month.",
-  "You are among the top 20% most consistent members.",
-];
-
-const PRACTICE_MILESTONES = [
-  { id: 1, current: 12, target: 30, unit: "Days", unlock: "30-Day Consistency Badge" },
-  { id: 2, current: 18, target: 50, unit: "Classes", unlock: "50 Classes Achievement" },
-];
 
 const REFLECTION_PROMPTS = [
   "How do you feel after today's practice?",
@@ -789,26 +782,6 @@ const REFLECTION_PROMPTS = [
   "What is your intention for tomorrow?",
 ];
 
-// Compact mock calendar for the current month — present / missed / workshop /
-// upcoming, in the spirit of the studio's real attendance tracking.
-function buildAttendanceCalendar() {
-  const now = new Date();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const today = now.getDate();
-  return Array.from({ length: daysInMonth }, (_, i) => {
-    const day = i + 1;
-    let status = "upcoming";
-    if (day < today) {
-      if (day % 10 === 0) status = "workshop";
-      else if (day % 6 === 0) status = "missed";
-      else status = "present";
-    } else if (day === today) {
-      status = "today";
-    }
-    return { day, status };
-  });
-}
-const ATTENDANCE_CALENDAR = buildAttendanceCalendar();
 
 // ---- Small building blocks -------------------------------------------
 function BreathRing({ size = 110, label, sub }) {
@@ -2344,8 +2317,8 @@ function WorkshopDetail({ workshop, onClose, onOpenReferralHub }) {
   );
 }
 
-function WeeklyGoalHero() {
-  const { completed, target } = WEEKLY_GOAL;
+function WeeklyGoalHero({ weeklyGoal }) {
+  const { completed, target } = weeklyGoal;
   const pct = Math.round((completed / target) * 100);
   const achieved = completed >= target;
   const remaining = target - completed;
@@ -2390,11 +2363,11 @@ function WeeklyGoalHero() {
   );
 }
 
-function ProgressSnapshot() {
+function ProgressSnapshot({ streak, monthlyAttendance, level }) {
   const cards = [
-    { icon: "🔥", label: "Current Streak", value: "12 Days" },
-    { icon: "🎯", label: "Monthly Attendance", value: "18 / 22 Classes" },
-    { icon: "🏆", label: "Practice Level", value: `Level ${CURRENT_LEVEL.level} · ${CURRENT_LEVEL.label}` },
+    { icon: "🔥", label: "Current Streak", value: `${streak} Day${streak === 1 ? "" : "s"}` },
+    { icon: "🎯", label: "Monthly Attendance", value: `${monthlyAttendance.completed} / ${monthlyAttendance.total} Classes` },
+    { icon: "🏆", label: "Practice Level", value: `Level ${level.level} · ${level.label}` },
   ];
   return (
     <div className="px-5 mt-5 grid grid-cols-3 gap-2.5">
@@ -2409,8 +2382,8 @@ function ProgressSnapshot() {
   );
 }
 
-function GoalJourneyCard() {
-  const g = GOAL_JOURNEY;
+function GoalJourneyCard({ goalJourney }) {
+  const g = goalJourney;
   return (
     <div className="px-5 mt-6">
       <h2 style={{ ...display, color: L.ink, fontSize: 17, marginBottom: 8 }}>Your Goal Journey</h2>
@@ -2525,12 +2498,12 @@ function AchievementBadgesRow() {
   );
 }
 
-function MonthlyInsights() {
+function MonthlyInsights({ monthlyInsights }) {
   return (
     <div className="px-5 mt-6">
       <h2 style={{ ...display, color: L.ink, fontSize: 17, marginBottom: 8 }}>Monthly Insights</h2>
       <div className="space-y-2">
-        {MONTHLY_INSIGHTS.map((insight) => (
+        {monthlyInsights.map((insight) => (
           <div key={insight} className="flex items-center gap-2.5 p-3 rounded-2xl" style={{ background: L.greenSoft }}>
             <Sparkles size={14} color={L.green} className="shrink-0" />
             <p style={{ ...body, color: L.ink, fontSize: 12.5, lineHeight: 1.35 }}>{insight}</p>
@@ -2568,13 +2541,13 @@ function PersonalReflections({ entries, onAddReflection }) {
   );
 }
 
-function MilestoneTracker() {
+function MilestoneTracker({ milestones }) {
   return (
     <div className="px-5 mt-6">
       <h2 style={{ ...display, color: L.ink, fontSize: 17, marginBottom: 8 }}>Milestone Tracker</h2>
       <div className="space-y-2.5">
-        {PRACTICE_MILESTONES.map((m) => (
-          <div key={m.id} className="rounded-2xl p-3.5" style={{ background: L.surface, border: `1px solid ${L.line}` }}>
+        {milestones.map((m, i) => (
+          <div key={i} className="rounded-2xl p-3.5" style={{ background: L.surface, border: `1px solid ${L.line}` }}>
             <div className="flex items-center justify-between">
               <p style={{ ...display, color: L.ink, fontSize: 14 }}>{m.current} / {m.target} {m.unit}</p>
               <span style={{ ...body, color: L.inkSoft, fontSize: 11 }}>{Math.round((m.current / m.target) * 100)}%</span>
@@ -2590,7 +2563,7 @@ function MilestoneTracker() {
   );
 }
 
-function AttendanceHistoryCalendar() {
+function AttendanceHistoryCalendar({ attendanceCalendar }) {
   const statusColor = {
     present: L.green,
     missed: L.danger,
@@ -2607,7 +2580,7 @@ function AttendanceHistoryCalendar() {
       <p style={{ ...body, color: L.inkSoft, fontSize: 11.5, marginBottom: 10 }}>{monthLabel}</p>
       <div className="rounded-2xl p-3.5" style={{ background: L.surface, border: `1px solid ${L.line}` }}>
         <div className="grid grid-cols-7 gap-1.5">
-          {ATTENDANCE_CALENDAR.map((d) => (
+          {attendanceCalendar.map((d) => (
             <div
               key={d.day}
               className="aspect-square rounded-md flex items-center justify-center"
@@ -2639,7 +2612,28 @@ function AttendanceHistoryCalendar() {
   );
 }
 
+// Fallback data shown while the API loads or on error.
+const PRACTICE_FALLBACK = {
+  weeklyGoal:        { completed: 0, target: 5 },
+  streak:            0,
+  monthlyAttendance: { completed: 0, total: 0 },
+  level:             { level: 1, label: "Beginner" },
+  goalJourney:       { goal: "Wellness", progress: 0, weeklyTarget: 5, monthlyTarget: 20 },
+  monthlyInsights:   ["Loading your insights…"],
+  milestones:        [
+    { current: 0, target: 30, unit: "Days",    unlock: "30-Day Consistency Badge" },
+    { current: 0, target: 50, unit: "Classes", unlock: "50 Classes Achievement" },
+  ],
+  attendanceCalendar: Array.from(
+    { length: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() },
+    (_, i) => ({ day: i + 1, status: i + 1 === new Date().getDate() ? "today" : i + 1 < new Date().getDate() ? "upcoming" : "upcoming" })
+  ),
+};
+
 function PracticeScreen({ onNav }) {
+  const { data, loading } = usePracticeSummary();
+  const summary = data ?? PRACTICE_FALLBACK;
+
   const [entries, setEntries] = useState([
     { d: "Yesterday", t: "Felt more open in hips after the evening batch." },
     { d: "3 days ago", t: "Skipped morning practice, did a 10-min video instead." },
@@ -2647,13 +2641,17 @@ function PracticeScreen({ onNav }) {
 
   useEffect(() => {
     trackEvent("practice_screen_opened");
-    trackEvent("weekly_goal_viewed", { ...WEEKLY_GOAL });
-    if (WEEKLY_GOAL.completed >= WEEKLY_GOAL.target) {
+  }, []);
+
+  useEffect(() => {
+    if (!data) return;
+    trackEvent("weekly_goal_viewed", { ...data.weeklyGoal });
+    if (data.weeklyGoal.completed >= data.weeklyGoal.target) {
       trackEvent("goal_completed", { goal: "weekly" });
     }
     trackEvent("milestone_viewed");
     trackEvent("attendance_history_viewed");
-  }, []);
+  }, [data]);
 
   const handleAddReflection = () => {
     const prompt = REFLECTION_PROMPTS[entries.length % REFLECTION_PROMPTS.length];
@@ -2670,13 +2668,17 @@ function PracticeScreen({ onNav }) {
       </div>
 
       {/* 2. Weekly Goal Progress — hero section */}
-      <WeeklyGoalHero />
+      <WeeklyGoalHero weeklyGoal={summary.weeklyGoal} />
 
       {/* 3. Progress Snapshot */}
-      <ProgressSnapshot />
+      <ProgressSnapshot
+        streak={summary.streak}
+        monthlyAttendance={summary.monthlyAttendance}
+        level={summary.level}
+      />
 
       {/* 4. Your Goal Journey */}
-      <GoalJourneyCard />
+      <GoalJourneyCard goalJourney={summary.goalJourney} />
 
       {/* 5. Recommended for Today */}
       <RecommendedForTodayCard onNav={onNav} />
@@ -2688,16 +2690,16 @@ function PracticeScreen({ onNav }) {
       <AchievementBadgesRow />
 
       {/* 8. Monthly Insights */}
-      <MonthlyInsights />
+      <MonthlyInsights monthlyInsights={summary.monthlyInsights} />
 
       {/* 9. Personal Reflections (formerly Practice Journal) */}
       <PersonalReflections entries={entries} onAddReflection={handleAddReflection} />
 
       {/* 10. Milestone Tracker */}
-      <MilestoneTracker />
+      <MilestoneTracker milestones={summary.milestones} />
 
       {/* 11. Attendance History */}
-      <AttendanceHistoryCalendar />
+      <AttendanceHistoryCalendar attendanceCalendar={summary.attendanceCalendar} />
     </div>
   );
 }
