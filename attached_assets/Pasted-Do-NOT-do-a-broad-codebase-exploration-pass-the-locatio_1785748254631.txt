@@ -1,0 +1,43 @@
+Do NOT do a broad codebase exploration pass — the locations below are already confirmed. Read only the specific files/lines listed, then write the changes directly.
+
+## Exact locations (all in `artifacts/divya-yoga/src/main-app.jsx`)
+
+**Hardcoded constants to remove/replace:**
+- Line 734: `WEEKLY_GOAL = { completed: 4, target: 5 }`
+- Line 738: `PRACTICE_LEVELS` array (level thresholds)
+- Line 745: `CURRENT_LEVEL = PRACTICE_LEVELS[2]`
+- Line 747: `GOAL_JOURNEY` object
+- Line 778: `MONTHLY_INSIGHTS` array of static strings
+- Line 785: `PRACTICE_MILESTONES` array
+- Line 798: `buildAttendanceCalendar()` function
+- Line 815: `ATTENDANCE_CALENDAR = buildAttendanceCalendar()`
+
+**Components that currently read those constants — update to fetch from the API instead:**
+- Line 2274: `WeeklyGoalHero()`
+- Line 2320: `ProgressSnapshot()` (streak, monthly attendance, level)
+- Line 2339: `GoalJourneyCard()`
+- Line 2455: `MonthlyInsights()`
+- Line 2498: `MilestoneTracker()`
+- Line 2520: `AttendanceHistoryCalendar()`
+
+**Backend:**
+- `lib/db/src/schema/index.ts` — add the `booking_sessions` table here if not already added by a prior prompt (bookingId, userId, classDate, batchId, status: `upcoming`/`present`/`missed`/`workshop`).
+- `artifacts/api-server/src/routes/` — add a new route file here.
+- `lib/api-spec/openapi.yaml` — update to match.
+
+## Changes
+
+**1. Backend route** — add `GET /api/practice/summary` returning, for the logged-in user:
+- `weeklyGoal`: `{ completed, target }` — completed = count of `present` `booking_sessions` this calendar week; target = the user's class-frequency from onboarding.
+- `streak`: consecutive days back from today with a `present` record, broken by any `missed` day.
+- `monthlyAttendance`: `{ completed, total }` for the current calendar month.
+- `level`: derived from lifetime `present` count against `PRACTICE_LEVELS`' thresholds (reuse that existing threshold table server-side instead of redefining it).
+- `goalJourney`: `{ goal, progress, weeklyTarget, monthlyTarget }` — `goal` = the goal selected at onboarding step 3; `progress` = this month's `present` ÷ `monthlyTarget` × 100, capped at 100.
+- `monthlyInsights`: computed sentences — sessions attended this month, consistency change vs last month, classes vs last month. Do not include a "top X% most consistent members" line — that needs a cross-user query and is out of scope here.
+- `milestones`: array of `{ current, target, unit, unlock }`, same shape as the current `PRACTICE_MILESTONES`, computed from streak/lifetime-class-count.
+- `attendanceCalendar`: one entry per day of the current month with its status, built from `booking_sessions`.
+- Treat any `upcoming` session whose class time has fully passed as `missed` at read-time (no cron job).
+
+**2. Frontend** — in the six components listed above, replace the constant lookups with data fetched from `/api/practice/summary` via the existing `lib/api-client-react` client. Add a simple loading state per section (skeleton or spinner) while the fetch resolves. Remove the now-unused constants (lines 734–815) once nothing references them.
+
+Keep this scoped to only these files and changes — do not refactor unrelated code.

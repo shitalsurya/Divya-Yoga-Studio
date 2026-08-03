@@ -16,6 +16,8 @@ tags:
     description: Class bookings
   - name: payments
     description: Payments
+  - name: practice
+    description: Practice progress and attendance summary
   - name: whatsapp
     description: WhatsApp group management
 
@@ -132,6 +134,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PaymentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /practice/summary:
+    get:
+      operationId: getPracticeSummary
+      tags: [practice]
+      summary: Get the authenticated user's practice progress summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Practice summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PracticeSummaryResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -348,6 +367,60 @@ components:
         mobile:
           type: string
       required: [slotId, mobile]
+
+    PracticeSummaryResponse:
+      type: object
+      properties:
+        weeklyGoal:
+          type: object
+          properties:
+            completed: { type: integer }
+            target:    { type: integer }
+          required: [completed, target]
+        streak:
+          type: integer
+        monthlyAttendance:
+          type: object
+          properties:
+            completed: { type: integer }
+            total:     { type: integer }
+          required: [completed, total]
+        level:
+          type: object
+          properties:
+            level: { type: integer }
+            label: { type: string }
+          required: [level, label]
+        goalJourney:
+          type: object
+          properties:
+            goal:          { type: string }
+            progress:      { type: integer }
+            weeklyTarget:  { type: integer }
+            monthlyTarget: { type: integer }
+          required: [goal, progress, weeklyTarget, monthlyTarget]
+        monthlyInsights:
+          type: array
+          items: { type: string }
+        milestones:
+          type: array
+          items:
+            type: object
+            properties:
+              current: { type: integer }
+              target:  { type: integer }
+              unit:    { type: string }
+              unlock:  { type: string }
+            required: [current, target, unit, unlock]
+        attendanceCalendar:
+          type: array
+          items:
+            type: object
+            properties:
+              day:    { type: integer }
+              status: { type: string }
+            required: [day, status]
+      required: [weeklyGoal, streak, monthlyAttendance, level, goalJourney, monthlyInsights, milestones, attendanceCalendar]
 
     CheckInResponse:
       type: object

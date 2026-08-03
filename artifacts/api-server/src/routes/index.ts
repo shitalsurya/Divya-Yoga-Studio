@@ -4,6 +4,7 @@ import authRouter from "./auth.js";
 import bookingsRouter from "./bookings.js";
 import checkInRouter from "./check-in.js";
 import paymentsRouter from "./payments.js";
+import practiceRouter from "./practice.js";
 import whatsappRouter from "./whatsapp.js";
 
 const router: IRouter = Router();
@@ -13,6 +14,7 @@ router.use("/auth", authRouter);
 router.use("/bookings", bookingsRouter);
 router.use("/bookings", checkInRouter);
 router.use("/payments", paymentsRouter);
+router.use("/practice", practiceRouter);
 router.use("/whatsapp", whatsappRouter);
 
 export default router;
