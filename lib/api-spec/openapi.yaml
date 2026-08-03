@@ -2,21 +2,29 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: Divya Yoga Studio API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: bookings
+    description: Class bookings
+  - name: payments
+    description: Payments
+  - name: whatsapp
+    description: WhatsApp group management
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +32,287 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/signup:
+    post:
+      operationId: authSignup
+      tags: [auth]
+      summary: Create a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Mobile number already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/signin:
+    post:
+      operationId: authSignin
+      tags: [auth]
+      summary: Sign in with mobile + PIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SigninRequest"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SigninResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /bookings:
+    post:
+      operationId: createBooking
+      tags: [bookings]
+      summary: Create a new booking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingRequest"
+      responses:
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /payments/mark-paid:
+    post:
+      operationId: markPaymentPaid
+      tags: [payments]
+      summary: Self-report a UPI payment as completed
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkPaidRequest"
+      responses:
+        "201":
+          description: Payment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /whatsapp/add-to-group:
+    post:
+      operationId: whatsappAddToGroup
+      tags: [whatsapp]
+      summary: Add a user to the WhatsApp batch group
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappAddRequest"
+      responses:
+        "200":
+          description: Result (success or graceful failure)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappAddResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    SignupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        mobile:
+          type: string
+          description: 10-digit Indian mobile number
+        pin:
+          type: string
+          description: 4-digit numeric PIN
+        onboarding:
+          type: object
+          description: Onboarding selections from the prototype flow
+          additionalProperties: true
+      required: [name, mobile, pin]
+
+    SigninRequest:
+      type: object
+      properties:
+        mobile:
+          type: string
+        pin:
+          type: string
+      required: [mobile, pin]
+
+    AuthResponse:
+      type: object
+      properties:
+        userId:
+          type: integer
+        sessionToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required: [userId, sessionToken, expiresAt]
+
+    SigninResponse:
+      allOf:
+        - $ref: "#/components/schemas/AuthResponse"
+        - type: object
+          properties:
+            user:
+              type: object
+              properties:
+                name:
+                  type: string
+                mobile:
+                  type: string
+                joinedAt:
+                  type: string
+                  format: date-time
+              required: [name, mobile, joinedAt]
+
+    CreateBookingRequest:
+      type: object
+      properties:
+        plan:
+          type: string
+          description: "regular | personal-5d | personal-3d"
+        slotId:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        participants:
+          type: integer
+          default: 1
+        amount:
+          type: integer
+          description: Amount in INR (whole rupees)
+      required: [plan, amount]
+
+    BookingResponse:
+      type: object
+      properties:
+        bookingId:
+          type: integer
+        status:
+          type: string
+      required: [bookingId, status]
+
+    MarkPaidRequest:
+      type: object
+      properties:
+        bookingId:
+          type: integer
+        amount:
+          type: integer
+        upiRef:
+          type: string
+          nullable: true
+      required: [bookingId, amount]
+
+    PaymentResponse:
+      type: object
+      properties:
+        paymentId:
+          type: integer
+        status:
+          type: string
+      required: [paymentId, status]
+
+    WhatsappAddRequest:
+      type: object
+      properties:
+        slotId:
+          type: string
+        mobile:
+          type: string
+      required: [slotId, mobile]
+
+    WhatsappAddResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        groupId:
+          type: string
+        reason:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+      required: [success]

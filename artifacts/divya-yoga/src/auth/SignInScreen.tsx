@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 
 export interface DivyaUser {
   name: string;
-  contact: string; // phone or email
-  joinedAt: string; // ISO date
+  mobile: string;
+  joinedAt: string;
 }
 
+const SESSION_KEY = 'divya_yoga_session';
 const USER_KEY = 'divya_yoga_user';
 
 export function getStoredUser(): DivyaUser | null {
@@ -17,20 +18,26 @@ export function getStoredUser(): DivyaUser | null {
   }
 }
 
-export function storeUser(user: DivyaUser): void {
+export function storeSession(token: string, user: DivyaUser): void {
+  localStorage.setItem(SESSION_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
-export function clearUser(): void {
+export function getSessionToken(): string | null {
+  return localStorage.getItem(SESSION_KEY);
+}
+
+export function clearSession(): void {
+  localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(USER_KEY);
 }
 
 interface Props {
   onSignedIn: (user: DivyaUser) => void;
-  onboarding?: Record<string, unknown> | null;
+  /** Mobile pre-filled from the onboarding postMessage payload */
+  prefillMobile?: string | null;
 }
 
-// Minimal colour tokens — mirrors Divya Yoga palette without importing main-app
 const C = {
   bg: '#F5F0E3',
   surface: '#FBF8F0',
@@ -44,41 +51,60 @@ const C = {
   danger: '#B5563E',
 };
 
-export default function SignInScreen({ onSignedIn, onboarding }: Props) {
-  const existing = getStoredUser();
-  const [mode, setMode] = useState<'signin' | 'signup'>(existing ? 'signin' : 'signup');
-  const [name, setName] = useState(existing?.name ?? '');
-  const [contact, setContact] = useState(existing?.contact ?? '');
+const MOBILE_RE = /^[6-9]\d{9}$/;
+
+export default function SignInScreen({ onSignedIn, prefillMobile }: Props) {
+  const [mobile, setMobile] = useState(prefillMobile ?? '');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const mobileValid = MOBILE_RE.test(mobile);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!name.trim() || !contact.trim()) {
-      setError('Please fill in all fields.');
+
+    if (!mobileValid) {
+      setError('Enter a valid 10-digit Indian mobile number.');
       return;
     }
-    if (mode === 'signin' && pin.length !== 4) {
+    if (pin.length !== 4) {
       setError('Enter your 4-digit PIN.');
       return;
     }
+
     setBusy(true);
-    // Simulate a short network round-trip
-    await new Promise((r) => setTimeout(r, 700));
-    const user: DivyaUser = {
-      name: name.trim(),
-      contact: contact.trim(),
-      joinedAt: existing?.joinedAt ?? new Date().toISOString(),
-    };
-    storeUser(user);
-    // Persist onboarding data alongside user if provided
-    if (onboarding) {
-      localStorage.setItem('divya_yoga_onboarding_data', JSON.stringify(onboarding));
+    try {
+      const res = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile, pin }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? 'Sign-in failed. Please try again.');
+        return;
+      }
+
+      storeSession(data.sessionToken, {
+        name: data.user?.name ?? '',
+        mobile: data.user?.mobile ?? mobile,
+        joinedAt: data.user?.joinedAt ?? new Date().toISOString(),
+      });
+
+      onSignedIn({
+        name: data.user?.name ?? '',
+        mobile: data.user?.mobile ?? mobile,
+        joinedAt: data.user?.joinedAt ?? new Date().toISOString(),
+      });
+    } catch {
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
-    onSignedIn(user);
   };
 
   return (
@@ -130,53 +156,46 @@ export default function SignInScreen({ onSignedIn, onboarding }: Props) {
             marginBottom: 4,
           }}
         >
-          {mode === 'signin' ? 'Welcome back' : 'Create Account'}
+          Welcome back
         </h2>
         <p style={{ color: C.inkSoft, fontSize: 13, marginTop: 0, marginBottom: 20 }}>
-          {mode === 'signin'
-            ? 'Sign in to your Divya Yoga account'
-            : "Join Archana's Divya Yoga Studio"}
+          Sign in with your registered mobile and PIN
         </p>
 
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Your Name</label>
+          <label style={labelStyle}>Mobile Number</label>
           <input
-            style={inputStyle}
-            type="text"
-            placeholder="e.g. Shital"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="name"
-          />
-
-          <label style={{ ...labelStyle, marginTop: 12 }}>Phone or Email</label>
-          <input
-            style={inputStyle}
-            type="text"
-            placeholder="98765 43210"
-            value={contact}
-            onChange={(e) => setContact(e.target.value)}
+            style={{
+              ...inputStyle,
+              borderColor: mobile.length > 0 && !mobileValid ? C.danger : '#E7DFCB',
+            }}
+            type="tel"
+            inputMode="tel"
+            placeholder="9876543210"
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
             autoComplete="tel"
           />
-
-          {mode === 'signin' && (
-            <>
-              <label style={{ ...labelStyle, marginTop: 12 }}>4-digit PIN</label>
-              <input
-                style={inputStyle}
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                placeholder="••••"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                autoComplete="current-password"
-              />
-            </>
+          {mobile.length > 0 && !mobileValid && (
+            <p style={{ color: C.danger, fontSize: 11, marginTop: 4, marginBottom: 0 }}>
+              Enter a valid 10-digit Indian mobile number
+            </p>
           )}
 
+          <label style={{ ...labelStyle, marginTop: 12 }}>4-digit PIN</label>
+          <input
+            style={inputStyle}
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            placeholder="••••"
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            autoComplete="current-password"
+          />
+
           {error && (
-            <p style={{ color: C.danger, fontSize: 12, marginTop: 8 }}>{error}</p>
+            <p style={{ color: C.danger, fontSize: 12, marginTop: 10, marginBottom: 0 }}>{error}</p>
           )}
 
           <button
@@ -196,53 +215,22 @@ export default function SignInScreen({ onSignedIn, onboarding }: Props) {
               fontFamily: 'inherit',
             }}
           >
-            {busy ? 'One moment…' : mode === 'signin' ? 'Sign In' : 'Get Started'}
+            {busy ? 'Signing in…' : 'Sign In →'}
           </button>
         </form>
 
-        <button
-          onClick={() => {
-            setMode(mode === 'signin' ? 'signup' : 'signin');
-            setError('');
-            setPin('');
-          }}
+        <p
           style={{
-            display: 'block',
-            width: '100%',
-            marginTop: 14,
-            background: 'none',
-            border: 'none',
             color: C.inkSoft,
-            fontSize: 12.5,
-            cursor: 'pointer',
-            textAlign: 'center',
-            fontFamily: 'inherit',
-          }}
-        >
-          {mode === 'signin'
-            ? 'New student? Create account'
-            : 'Already have an account? Sign in'}
-        </button>
-      </div>
-
-      {onboarding && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: '10px 14px',
-            borderRadius: 12,
-            background: C.goldSoft,
-            border: `1px solid ${C.gold}`,
-            maxWidth: 360,
-            width: '100%',
             fontSize: 12,
-            color: C.ink,
-            lineHeight: 1.4,
+            marginTop: 16,
+            textAlign: 'center',
+            lineHeight: 1.5,
           }}
         >
-          🎯 Your onboarding selections are saved and will personalise your home screen.
-        </div>
-      )}
+          New student? Complete the onboarding flow to create your account.
+        </p>
+      </div>
     </div>
   );
 }

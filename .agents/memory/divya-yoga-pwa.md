@@ -1,6 +1,6 @@
 ---
 name: Divya Yoga PWA architecture
-description: Key decisions for auth flow, i18n, push notifications, and phone-frame removal in the Divya Yoga Studio app.
+description: Key decisions for auth flow, i18n, push notifications, phone-frame removal, and backend wiring in the Divya Yoga Studio app.
 ---
 
 ## Phone frame removal
@@ -9,23 +9,46 @@ The fake device frame in `main-app.jsx` was replaced with `height:100dvh` on the
 **Why:** App was showing a fake phone-in-browser chrome; needed a real PWA shell for standalone install.
 
 ## i18n
-Three files in `src/i18n/`: `en.json`, `hi.json`, `mr.json`. Context in `LanguageContext.tsx` exposes `{ lang, setLang, translate }`. Persisted to `localStorage` key `divya_yoga_lang`. `LanguageProvider` wraps the whole app in `App.tsx`. `translate(key)` falls back to English if key missing in target language. Tab labels use `translate(\`nav_${t.id}\`)` in the MainApp tab bar.
-
-**Why:** Audience is Indian students; Hindi and Marathi cover the two most common regional languages.
+Three files in `src/i18n/`: `en.json`, `hi.json`, `mr.json`. Context in `LanguageContext.tsx` exposes `{ lang, setLang, translate }`. Persisted to `localStorage` key `divya_yoga_lang`. `LanguageProvider` wraps the whole app in `App.tsx`. `translate(key)` falls back to English if key missing. Tab labels use `translate(\`nav_${t.id}\`)` in the MainApp tab bar.
 
 ## Push notifications
-`src/lib/notifications.ts` exports `requestPermission()`, `showNotification(type)`, `sendTestNotifications()`. Uses `registration.showNotification()` via the SW; falls back to direct `new Notification()`. Four types: `batch_reminder`, `workshop_confirmed`, `waitlist_opened`, `streak_nudge`. Debug test button in `NotificationPreferencesScreen` shown only when `localStorage.divya_debug === "true"`. SW's `notificationclick` handler posts `{ type: 'notification-action', action }` to open app windows.
+`src/lib/notifications.ts` exports `requestPermission()`, `showNotification(type)`, `sendTestNotifications()`. Uses `registration.showNotification()` via the SW; falls back to direct `new Notification()`. Four types: `batch_reminder`, `workshop_confirmed`, `waitlist_opened`, `streak_nudge`. Debug test button in `NotificationPreferencesScreen` shown only when `localStorage.divya_debug === "true"`. SW's `notificationclick` handler posts `{ type: 'notification-action', action }` to focus open app windows.
 
-**Why:** Real OS-level notifications require SW; direct `Notification` constructor only works in foreground.
+## Auth flow (prototype.html → API → SignInScreen)
+`prototype.html` now has 12 steps (was 11). New step 11 = UPI Payment screen. Step 12 = Confirmation.
 
-## Auth flow
-`App.tsx` has three states: `onboarding → signin → app`. State derived on load from `localStorage`. `getStoredUser()` in `src/auth/SignInScreen.tsx` returns user or null. After onboarding postMessage, if user exists → skip to `app`, else → `signin`. Onboarding data sent as `event.data.onboarding` from `prototype.html`'s `goToHome()`. Stored under `divya_yoga_onboarding_data`. `SignInScreen` is a mock — any name+contact creates an account; signin requires a 4-digit PIN (any 4 digits accepted).
+- Booking screen (10): collects name, mobile (10-digit Indian regex `/^[6-9]\d{9}$/`), 4-digit PIN, consent.
+- UPI Payment screen (11): client-side QR via `qrcode@1.5.4` CDN, UPI link `upi://pay?pa=9356681834@okbizaxis&...`, copyable UPI ID pill, "I've completed payment" CTA.
+- Confirmation screen (12): `populateConfirmation()` is async — fires `POST /api/auth/signup` → `POST /api/bookings` → `POST /api/payments/mark-paid` → `POST /api/whatsapp/add-to-group` (regular only, non-fatal). Button label changes to "Setting up your account…" while in flight.
+- `goToHome()` on Confirmation sends postMessage with name/mobile/pin in the onboarding payload.
+- `App.tsx` always routes to `SignInScreen` after onboarding (no auto-login). SignInScreen pre-fills mobile from `onboardingData.mobile`.
+- `SignInScreen.tsx` is signin-only (no signup mode). Calls `POST /api/auth/signin`. Stores JWT in `divya_yoga_session`, user in `divya_yoga_user`.
 
-**Why:** No real auth backend exists; flow demonstrates the UX shape without backend dependency.
+**Why:** Explicit sign-in after account creation prevents silent auto-login and teaches users their credentials.
+
+## Backend (api-server)
+Routes: `POST /api/auth/signup`, `POST /api/auth/signin`, `POST /api/bookings`, `POST /api/payments/mark-paid`, `POST /api/whatsapp/add-to-group`.
+- Passwords: bcryptjs with 12 rounds. Never store/transmit PIN in plaintext.
+- JWT: jose `HS256`, `SESSION_SECRET` env var, 30-day expiry.
+- Auth middleware: `requireAuth` in `src/middlewares/auth.ts`.
+- WhatsApp: Meta Cloud API v22.0, group IDs from `WA_GROUP_s1`…`WA_GROUP_s5` env vars, token from `WHATSAPP_API_TOKEN`. Failure is non-fatal (returns `{ success: false, reason }` not 500).
+
+## DB schema (Drizzle + Postgres)
+Four tables: `users`, `batches`, `bookings`, `payments`. See `lib/db/src/schema/`. Run `pnpm --filter @workspace/db run push` to apply migrations.
+
+## API client setup
+`setAuthTokenGetter(() => getSessionToken())` called in `App.tsx` useEffect so all orval-generated hooks automatically send Bearer tokens. `getSessionToken()` reads from `localStorage.divya_yoga_session`.
+
+## Vite proxy
+`/api` proxied to `http://localhost:8080` in `vite.config.ts` — needed so `prototype.html` (served by the Vite dev server) can call the API server in development.
 
 ## Key localStorage keys
 - `divya_yoga_onboarding_complete` — "true" when onboarding done
-- `divya_yoga_user` — JSON DivyaUser object
+- `divya_yoga_session` — JWT session token (replaces old divya_yoga_user as auth signal)
+- `divya_yoga_user` — JSON DivyaUser object (name/mobile/joinedAt)
 - `divya_yoga_onboarding_data` — JSON onboarding selections
 - `divya_yoga_lang` — "en" | "hi" | "mr"
-- `divya_debug` — set to "true" to reveal debug test button
+- `divya_debug` — set to "true" to reveal notification test button
+
+## TS typecheck note
+`pnpm typecheck` in api-server shows "Output file not built" errors for lib packages — pre-existing workspace pattern; lib packages have no `build` script, consumed directly by esbuild at bundle time. Runtime is unaffected.

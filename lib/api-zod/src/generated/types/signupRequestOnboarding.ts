@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+/**
+ * Onboarding selections from the prototype flow
+ */
+export type SignupRequestOnboarding = { [key: string]: unknown };

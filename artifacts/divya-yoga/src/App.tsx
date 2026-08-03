@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import MainApp from './main-app';
-import SignInScreen, { getStoredUser, type DivyaUser } from './auth/SignInScreen';
+import SignInScreen, {
+  getSessionToken,
+  storeSession,
+  type DivyaUser,
+} from './auth/SignInScreen';
 import { LanguageProvider } from './i18n/LanguageContext';
+import { setAuthTokenGetter } from '@workspace/api-client-react';
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -17,14 +22,20 @@ const ONBOARDING_COMPLETE_MESSAGE = 'divya-yoga-onboarding-complete';
 function deriveInitialState(): AppState {
   const onboardingDone = window.localStorage.getItem(ONBOARDING_COMPLETE_KEY) === 'true';
   if (!onboardingDone) return 'onboarding';
-  const user = getStoredUser();
-  return user ? 'app' : 'signin';
+  const token = getSessionToken();
+  return token ? 'app' : 'signin';
 }
 
 function App() {
   const [appState, setAppState] = useState<AppState>(deriveInitialState);
   const [onboardingData, setOnboardingData] = useState<Record<string, unknown> | null>(null);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+
+  // Register the session token getter so all generated API hooks send Bearer tokens.
+  useEffect(() => {
+    setAuthTokenGetter(() => getSessionToken());
+    return () => setAuthTokenGetter(null);
+  }, []);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -42,16 +53,15 @@ function App() {
 
       window.localStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
 
-      // Store onboarding selections if the prototype sent them
       const data = event.data?.onboarding ?? null;
       if (data) {
         setOnboardingData(data);
         window.localStorage.setItem('divya_yoga_onboarding_data', JSON.stringify(data));
       }
 
-      // Go to sign-in if no account yet, or straight to app if already signed in
-      const existingUser = getStoredUser();
-      setAppState(existingUser ? 'app' : 'signin');
+      // The prototype's Confirmation screen already called signup + booking APIs.
+      // We only navigate to signin — the user must explicitly authenticate.
+      setAppState('signin');
     };
 
     window.addEventListener('message', handleOnboardingMessage);
@@ -69,6 +79,10 @@ function App() {
     setInstallPrompt(null);
   };
 
+  // Mobile pre-fill from the onboarding payload (name/mobile/pin were collected on Booking screen)
+  const prefillMobile =
+    typeof onboardingData?.mobile === 'string' ? onboardingData.mobile : null;
+
   return (
     <LanguageProvider>
       {appState === 'onboarding' && (
@@ -82,7 +96,7 @@ function App() {
       )}
 
       {appState === 'signin' && (
-        <SignInScreen onSignedIn={handleSignedIn} onboarding={onboardingData} />
+        <SignInScreen onSignedIn={handleSignedIn} prefillMobile={prefillMobile} />
       )}
 
       {appState === 'app' && (

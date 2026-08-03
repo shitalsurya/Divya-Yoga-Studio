@@ -1,0 +1,29 @@
+Context: The current app is a UI-only prototype. Sign-up writes straight to localStorage with a fake network delay, the database schema is empty, and the API server has exactly one route (/api/healthz). Nothing a user does — booking a class, signing up, editing a profile — is actually saved anywhere.
+
+1. Remove separate account creation
+Add a 4-digit PIN field to the existing Booking screen in prototype.html (it already collects name + mobile).
+Remove SignInScreen.tsx's signup mode entirely — it becomes sign-in-only, for returning users on a new device (mobile + PIN).
+Include name, mobile, and pin in the onboarding object posted via postMessage in goToHome() — currently these fields are captured in the DOM inputs but never included in the payload sent to the parent.
+On the final Confirmation screen, replace the "Go to My Home Screen" button with a "Sign In" button. Clicking it sends the onboarding-complete message and routes to SignInScreen, where the user logs in with the mobile + PIN they just set — explicit sign-in, not auto-login.
+2. Add mobile format validation
+On the Booking screen, require a valid 10-digit Indian mobile number before enabling continue. UI validation only for now — real OTP via SMS provider is a later phase.
+3. Insert a new UPI Payment screen
+Place it right after Booking, before Confirmation.
+Generate the QR code client-side, encoding a UPI deep link: upi://pay?pa=9356681834@okbizaxis&pn=Divya Yoga Studio&am=<amount>&cu=INR&tn=<plan name>, where <amount> is the price already calculated at the Pricing step — not a static image, since the fee varies by class type/schedule/participants.
+Match the visual style of the reference image provided: a card with "💳 Payment via UPI" label, QR code, and the UPI ID shown both as a caption under the QR and as a copyable pill below it.
+CTA: "I've completed payment" — self-reported for now, no automatic verification.
+4. Reorder final steps
+New order: Booking (+ validation) → UPI Payment → Confirmation.
+On Confirmation: if classType === 'regular', call a backend endpoint to add the user to the WhatsApp group mapped to the batch chosen at the Time Slot step (step 5 in the Regular flow). Skip entirely if classType === 'personal' — personal sessions have no WhatsApp group.
+Apply the same restructure (validation → payment → confirmation) to the Personal-session flow, minus the WhatsApp step.
+5. Backend additions
+Schema (lib/db/src/schema/index.ts, currently empty): define users (name, mobile, pin_hash, joinedAt), batches/classes (name, schedule, capacity, whatsapp_group_id), bookings (userId, batchId/classId, plan, status, bookedAt), payments (bookingId, amount, upi_ref, status, reportedAt).
+Routes (artifacts/api-server/src/routes/, currently only /api/healthz):
+POST /api/auth/signup — name, mobile, pin (hashed server-side with bcrypt — never store or transmit in plaintext), onboarding preferences
+POST /api/auth/signin — mobile + pin
+POST /api/bookings — persist a booking (currently nothing is saved anywhere)
+POST /api/payments/mark-paid — record the self-reported payment against a booking
+POST /api/whatsapp/add-to-group — takes batch ID + mobile number, looks up the group ID from batches, calls the WhatsApp Business API (Meta Cloud API) to add the member
+Update lib/api-spec/openapi.yaml to match all new routes.
+Store WhatsApp API and any other credentials as environment secrets, never in frontend code.
+Wire the frontend to actually call these endpoints via the existing but currently unused lib/api-client-react client, instead of writing to localStorage. localStorage should only ever hold a session token, not user or booking data.

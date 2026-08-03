@@ -171,7 +171,21 @@
   @media (prefers-reduced-motion: reduce){
     .scr{ transition:none; } .success-icon{ animation:none; }
   }
+
+  /* UPI Payment screen */
+  .payment-card{ background:#fff; border:1.6px solid var(--line); border-radius:20px; padding:20px; margin:6px 0; text-align:center; }
+  .payment-label{ font-size:10.5px; font-weight:700; color:var(--mutedsage); letter-spacing:.04em; text-transform:uppercase; margin-bottom:14px; }
+  .qr-wrap{ display:flex; justify-content:center; margin:10px 0; background:#F4EDE1; border-radius:14px; padding:16px; }
+  #upiQr{ display:block; }
+  .upi-amount{ font-family:'Fraunces',serif; font-size:28px; font-weight:600; color:var(--olive-dark); margin:10px 0 2px; }
+  .upi-plan-label{ font-size:11px; color:var(--mutedsage); margin-bottom:8px; }
+  .upi-caption{ font-size:10.5px; color:var(--mutedsage); margin:4px 0 12px; letter-spacing:.01em; }
+  .upi-id-pill{ display:inline-flex; align-items:center; gap:8px; background:var(--beige); border:1.4px solid var(--line); border-radius:30px; padding:10px 16px; cursor:pointer; transition:.15s; }
+  .upi-id-pill:active{ background:#EDE3D0; }
+  .upi-id-text{ font-size:13px; font-weight:700; color:var(--olive-dark); font-family:'Courier New',monospace; letter-spacing:.03em; }
+  .copy-badge{ font-size:11px; color:var(--sage); font-weight:700; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -425,7 +439,8 @@
         <h1 class="scr-title">Let's Book Your Session</h1>
         <p class="scr-sub">Fill in your details to confirm.</p>
         <div class="field-wrap"><span class="field-label">Full Name</span><input class="field-input" id="in-name" placeholder="Your Name" oninput="checkBookingValid()"></div>
-        <div class="field-wrap"><span class="field-label">Mobile Number</span><input class="field-input" id="in-mobile" placeholder="98765 43210" oninput="checkBookingValid()"></div>
+        <div class="field-wrap"><span class="field-label">Mobile Number</span><input class="field-input" id="in-mobile" placeholder="9876543210" inputmode="tel" oninput="checkBookingValid()"><div id="mobileError" style="font-size:11px;color:#B5563E;margin-top:4px;display:none;">Enter a valid 10-digit Indian mobile number (starts with 6–9)</div></div>
+        <div class="field-wrap"><span class="field-label">Create 4-Digit PIN</span><input class="field-input" id="in-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4);checkBookingValid()"><div style="font-size:10px;color:var(--mutedsage);margin-top:3px;">You'll use this PIN to sign in on other devices</div></div>
         <div class="toggle-row"><span class="toggle-text">Send reminders on WhatsApp</span><div class="toggle on" id="waToggle" onclick="this.classList.toggle('on')"></div></div>
         <div class="field-wrap"><span class="field-label">Preferred Start Date</span><input class="field-input" type="date" id="in-date"></div>
         <div class="notes-box"><b>Important Notes</b>60 min sessions · Prior appointment mandatory · Fees payable in advance &amp; non-refundable · Limited slots available</div>
@@ -437,8 +452,32 @@
         <button class="ctaBtn" id="cta10" disabled onclick="goTo(11)">Confirm Booking Request →</button>
       </div>
 
-      <!-- SCREEN 11 : CONFIRMATION -->
+      <!-- SCREEN 11 : UPI PAYMENT -->
       <div class="scr" data-n="11">
+        <h1 class="scr-title">Complete Your Payment</h1>
+        <p class="scr-sub">Scan the QR code with any UPI app, or copy the UPI ID below.</p>
+        <div class="payment-card">
+          <div class="payment-label">💳 Payment via UPI</div>
+          <div class="qr-wrap">
+            <canvas id="upiQr"></canvas>
+          </div>
+          <div class="upi-amount" id="payAmount">₹0</div>
+          <div class="upi-plan-label" id="payPlan"></div>
+          <div class="upi-caption">BHIM · PhonePe · Google Pay · Paytm</div>
+          <div class="upi-id-pill" onclick="copyUpiId()">
+            <span class="upi-id-text">9356681834@okbizaxis</span>
+            <span class="copy-badge">📋 Copy</span>
+          </div>
+          <div id="copyConfirm" style="display:none;text-align:center;color:var(--olive);font-size:11px;margin-top:6px;font-weight:600;">✓ Copied to clipboard</div>
+        </div>
+        <div class="notes-box" style="margin-top:12px;"><b>After payment</b>Tap the button below. Your booking will be confirmed once our team verifies the payment within 24 hours.</div>
+        <div class="spacer"></div>
+        <button class="ctaBtn" onclick="goTo(12)">I've completed payment →</button>
+        <button class="ghostBtn">Having trouble? Chat with us on WhatsApp</button>
+      </div>
+
+      <!-- SCREEN 12 : CONFIRMATION -->
+      <div class="scr" data-n="12">
         <div class="success-wrap">
           <div class="success-icon">✓</div>
           <div style="font-family:'Fraunces',serif; font-size:19px; font-weight:600; color:var(--olive-dark);">Booking Request Confirmed!</div>
@@ -449,7 +488,7 @@
           <div class="summary-row" style="padding:6px 0;"><div class="summary-icon">🕙</div><div><div class="summary-k">FIRST SESSION</div><div class="summary-v" id="conf-session">—</div></div></div>
         </div>
         <div class="spacer"></div>
-        <button class="ctaBtn" onclick="goToHome()">Go to My Home Screen</button>
+        <button class="ctaBtn" id="signInBtn" onclick="goToHome()">Sign In to Your Account →</button>
         <button class="ctaBtn">Add to Calendar</button>
         <button class="ghostBtn" onclick="restart()">Start Over</button>
       </div>
@@ -459,13 +498,13 @@
 </div>
 
 <script>
-  const state = { screen:1, classType:null, goals:new Set(), health:new Set(), notes:'', schedule:null, participants:null, slot:null, consent:false };
+  const state = { screen:1, classType:null, goals:new Set(), health:new Set(), notes:'', schedule:null, participants:null, slot:null, consent:false, price:0 };
   const PRICES = { 5:{1:10000,2:15000,3:20000}, 3:{1:6000,2:11000,3:15000} };
   const REGULAR_PRICE = 1200;
 
   // Personal path visits every screen; Regular path skips Schedule (5) & Participants (6)
-  const FLOW_PERSONAL = [1,2,3,4,5,6,7,8,9,10,11];
-  const FLOW_REGULAR  = [1,2,3,4,7,8,9,10,11];
+  const FLOW_PERSONAL = [1,2,3,4,5,6,7,8,9,10,11,12];
+  const FLOW_REGULAR  = [1,2,3,4,7,8,9,10,11,12];
   function activeFlow(){ return state.classType==='regular' ? FLOW_REGULAR : FLOW_PERSONAL; }
   function nextAfter(n){
     const flow = activeFlow();
@@ -504,7 +543,8 @@
     if(n===7) renderSlotScreen();
     if(n===8) populateSummary();
     if(n===9) populatePricing();
-    if(n===11) populateConfirmation();
+    if(n===11) populatePaymentScreen();
+    if(n===12) populateConfirmation();
   }
   function goTo(n){ showScreen(n); }
   function goNext(){ showScreen(nextAfter(state.screen)); }
@@ -611,11 +651,22 @@
       document.getElementById('includedList').innerHTML = '✓ 100% personalized plan<br>✓ Posture &amp; therapeutic guidance<br>✓ Progress tracking';
       document.getElementById('trialLink').textContent = 'Not ready? Book a trial for ₹499';
     }
+    // Cache the computed price for the payment screen
+    const priceText = document.getElementById('priceNum').textContent;
+    state.price = parseInt(priceText.replace(/[^0-9]/g, ''), 10) || 0;
   }
   function checkBookingValid(){
     const name = document.getElementById('in-name').value.trim();
-    const mobile = document.getElementById('in-mobile').value.trim();
-    document.getElementById('cta10').disabled = !(name && mobile && state.consent);
+    const mobile = document.getElementById('in-mobile').value.replace(/\s/g,'');
+    const pin = document.getElementById('in-pin').value;
+    const mobileValid = /^[6-9]\d{9}$/.test(mobile);
+    const mobileErr = document.getElementById('mobileError');
+    if(mobile.length > 0){
+      mobileErr.style.display = mobileValid ? 'none' : 'block';
+    } else {
+      mobileErr.style.display = 'none';
+    }
+    document.getElementById('cta10').disabled = !(name && mobileValid && pin.length===4 && state.consent);
   }
   function toggleConsent(){
     state.consent = !state.consent;
@@ -623,13 +674,96 @@
     document.getElementById('consentBox').textContent = state.consent ? '✓' : '';
     checkBookingValid();
   }
-  function populateConfirmation(){
+  function populatePaymentScreen(){
+    const amount = state.price || 0;
+    const isRegular = state.classType==='regular';
+    const planLabel = isRegular ? 'Regular Group Class' : `Personal · ${state.schedule||5} Days/Week`;
+    document.getElementById('payAmount').textContent = '₹' + amount.toLocaleString('en-IN');
+    document.getElementById('payPlan').textContent = planLabel;
+
+    const UPI_ID = '9356681834@okbizaxis';
+    const tn = encodeURIComponent(planLabel);
+    const upiLink = `upi://pay?pa=${UPI_ID}&pn=Divya%20Yoga%20Studio&am=${amount}&cu=INR&tn=${tn}`;
+
+    const canvas = document.getElementById('upiQr');
+    QRCode.toCanvas(canvas, upiLink, { width: 200, margin: 1, color:{ dark:'#39461f', light:'#F4EDE1' } }, function(err){
+      if(err) console.error('QR error:', err);
+    });
+  }
+  function copyUpiId(){
+    const upiId = '9356681834@okbizaxis';
+    const confirm = document.getElementById('copyConfirm');
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(upiId).then(()=>{
+        confirm.style.display='block';
+        setTimeout(()=>{ confirm.style.display='none'; }, 2500);
+      });
+    }
+  }
+  async function populateConfirmation(){
     const isRegular = state.classType==='regular';
     document.getElementById('conf-plan').textContent = isRegular
       ? 'Regular Group Class' : `Personal · ${state.schedule||5} Days/Week`;
     const dateVal = document.getElementById('in-date').value;
     const timeText = state.slot ? state.slot.time : 'Time TBC';
     document.getElementById('conf-session').textContent = (dateVal||'Date TBC') + ' · ' + timeText + (isRegular?'':' IST');
+
+    const signInBtn = document.getElementById('signInBtn');
+    if(signInBtn){ signInBtn.disabled=true; signInBtn.textContent='Setting up your account…'; }
+
+    const name = document.getElementById('in-name').value.trim();
+    const mobile = document.getElementById('in-mobile').value.replace(/\s/g,'');
+    const pin = document.getElementById('in-pin').value;
+
+    try {
+      // 1. Create account
+      const signupRes = await fetch('/api/auth/signup', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          name, mobile, pin,
+          onboarding:{ classType:state.classType, goals:[...state.goals], health:[...state.health],
+            notes:state.notes, schedule:state.schedule, participants:state.participants, slot:state.slot }
+        })
+      });
+      const signup = await signupRes.json();
+      if(!signupRes.ok) throw new Error(signup.error || 'Account creation failed');
+      const token = signup.sessionToken;
+      const H = {'Content-Type':'application/json','Authorization':'Bearer '+token};
+
+      // 2. Create booking
+      const bookingRes = await fetch('/api/bookings', {
+        method:'POST', headers:H,
+        body: JSON.stringify({
+          plan: isRegular ? 'regular' : `personal-${state.schedule||5}d`,
+          slotId: state.slot?.id ?? null,
+          startDate: dateVal || null,
+          participants: state.participants || 1,
+          amount: state.price || 0
+        })
+      });
+      const booking = await bookingRes.json();
+      if(!bookingRes.ok) throw new Error(booking.error || 'Booking failed');
+
+      // 3. Record self-reported payment
+      await fetch('/api/payments/mark-paid', {
+        method:'POST', headers:H,
+        body: JSON.stringify({ bookingId:booking.bookingId, amount:state.price||0 })
+      });
+
+      // 4. Add to WhatsApp group — regular class only, non-fatal
+      if(isRegular && state.slot?.id){
+        await fetch('/api/whatsapp/add-to-group', {
+          method:'POST', headers:H,
+          body: JSON.stringify({ slotId:state.slot.id, mobile })
+        }).catch(()=>{});
+      }
+
+      if(signInBtn){ signInBtn.disabled=false; signInBtn.textContent='Sign In to Your Account →'; }
+    } catch(err){
+      console.error('Setup error:', err);
+      // Non-blocking: still allow the user to proceed
+      if(signInBtn){ signInBtn.disabled=false; signInBtn.textContent='Sign In to Your Account →'; }
+    }
   }
   function goToHome(){
     const onboarding = {
@@ -640,6 +774,9 @@
       schedule: state.schedule,
       participants: state.participants,
       slot: state.slot,
+      name: document.getElementById('in-name').value.trim(),
+      mobile: document.getElementById('in-mobile').value.replace(/\s/g,''),
+      pin: document.getElementById('in-pin').value,
     };
     window.parent.postMessage({ type: 'divya-yoga-onboarding-complete', onboarding }, window.location.origin);
   }
