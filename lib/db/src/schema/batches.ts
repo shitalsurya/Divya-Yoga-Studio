@@ -9,6 +9,10 @@ export const batchesTable = pgTable("batches", {
   mode: text("mode").notNull().default("offline"), // "offline" | "online"
   capacity: integer("capacity").notNull().default(20),
   whatsappGroupId: text("whatsapp_group_id"),
+  // Schedule fields matching the app BATCHES array shape
+  slotKey: text("slot_key"),             // e.g. "7:00 PM" — used for time-window checks
+  days: text("days"),                    // e.g. "Mon–Sat"
+  meetLink: text("meet_link"),           // null for Offline batches; Meet URL for Online batches
 });
 
 export const insertBatchSchema = createInsertSchema(batchesTable);

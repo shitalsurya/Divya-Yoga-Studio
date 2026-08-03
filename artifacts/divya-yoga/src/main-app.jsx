@@ -89,7 +89,7 @@ const BATCHES = [
   { id: 2, time: "7:30 – 8:30 AM", slotKey: "7:30 AM", label: "Morning Batch", days: "Mon–Sat", mode: "Offline", spots: 3, total: 15 },
   { id: 3, time: "8:30 – 9:30 AM", slotKey: "8:30 AM", label: "Morning Batch", days: "Mon–Sat", mode: "Offline", spots: 6, total: 15 },
   { id: 4, time: "5:30 – 6:30 PM", slotKey: "5:30 PM", label: "Evening Batch", days: "Mon–Sat", mode: "Offline", spots: 0, total: 15 },
-  { id: 5, time: "7:00 – 8:00 PM", slotKey: "7:00 PM", label: "Evening Online", days: "Mon–Sat", mode: "Online", spots: 11, total: 20 },
+  { id: 5, time: "7:00 – 8:00 PM", slotKey: "7:00 PM", label: "Evening Online", days: "Mon–Sat", mode: "Online", spots: 11, total: 20, meetLink: "https://meet.google.com/abc-defg-hij" },
 ];
 
 // Weekly exercise sequence per day/slot, from Archana's printed timetable.
@@ -646,10 +646,6 @@ function getTodaysPractice(slotKey) {
   return { ...focus, ...detail };
 }
 
-// Mock video-call link for the day's live batch — a real build would fetch
-// this per-batch from the backend.
-const LIVE_CLASS_MEET_LINK = "https://meet.google.com/abc-defg-hij";
-
 // Parses a "7:30 AM" style slot label into a Date for today, so the live
 // session card can compute "starts in X minutes" / "Live Now" / "Completed".
 function slotToTodayDate(slotKey) {
@@ -1036,6 +1032,7 @@ function TodaysPracticeCard({ practice, onOpenTimetable }) {
 function LiveClassSection({ batch }) {
   const [status, setStatus] = useState(() => getLiveClassStatus(batch.slotKey));
   const [joined, setJoined] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   const statusStyle = {
     upcoming: { bg: L.goldSoft, fg: L.gold, dot: false },
@@ -1044,13 +1041,91 @@ function LiveClassSection({ batch }) {
     completed: { bg: L.line, fg: L.inkSoft, dot: false },
   }[status.state];
 
-  const handleJoin = () => {
+  const isOnline = batch.mode === "Online";
+  const canCheckIn = status.state === "starting_soon" || status.state === "live";
+  const isMissed = status.state === "completed" && !joined;
+
+  /** Calls the check-in endpoint and returns true only on HTTP 200. */
+  const callCheckInApi = async () => {
+    const token = localStorage.getItem("divya_yoga_session");
+    if (!token) return false;
+    try {
+      const res = await fetch(`/api/bookings/${batch.id}/check-in`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.ok;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  /**
+   * Online: open the Meet link immediately (user is in the meeting regardless),
+   * then await the server check-in; only mark joined on a 200 response.
+   */
+  const handleJoin = async () => {
     trackEvent("join_live_class_clicked", { batchId: batch.id });
-    setJoined(true);
-    trackEvent("attendance_marked", { batchId: batch.id });
-    window.open(LIVE_CLASS_MEET_LINK, "_blank");
+    window.open(batch.meetLink, "_blank");
+    setChecking(true);
+    const ok = await callCheckInApi();
+    setChecking(false);
+    if (ok) {
+      trackEvent("attendance_marked", { batchId: batch.id });
+      setJoined(true);
+    }
     setStatus(getLiveClassStatus(batch.slotKey));
   };
+
+  /**
+   * Offline: await server confirmation before showing the checked-in state.
+   */
+  const handleOfflineCheckIn = async () => {
+    trackEvent("check_in_clicked", { batchId: batch.id });
+    setChecking(true);
+    const ok = await callCheckInApi();
+    setChecking(false);
+    if (ok) {
+      trackEvent("attendance_marked", { batchId: batch.id });
+      setJoined(true);
+    }
+    setStatus(getLiveClassStatus(batch.slotKey));
+  };
+
+  // Determine button label, disabled state, and handler
+  let buttonLabel, buttonDisabled, buttonAction;
+  if (checking) {
+    buttonLabel = isOnline ? "Joining…" : "Checking in…";
+    buttonDisabled = true;
+    buttonAction = undefined;
+  } else if (joined) {
+    buttonLabel = "You're checked in ✓";
+    buttonDisabled = true;
+    buttonAction = undefined;
+  } else if (isOnline) {
+    buttonLabel = status.state === "completed" ? "Session Completed" : "Join Live Class";
+    buttonDisabled = status.state === "completed";
+    buttonAction = buttonDisabled ? undefined : handleJoin;
+  } else {
+    // Offline batch
+    if (isMissed) {
+      buttonLabel = "Missed";
+      buttonDisabled = true;
+      buttonAction = undefined;
+    } else if (canCheckIn) {
+      buttonLabel = "Check In";
+      buttonDisabled = false;
+      buttonAction = handleOfflineCheckIn;
+    } else {
+      buttonLabel = "Opens 15 min before class";
+      buttonDisabled = true;
+      buttonAction = undefined;
+    }
+  }
+
+  const buttonActive = !buttonDisabled && !joined;
+  const buttonBg = buttonActive ? L.green : L.line;
+  const buttonColor = buttonActive ? "#FFFFFF" : L.inkSoft;
 
   return (
     <div className="px-5 mt-5">
@@ -1076,17 +1151,12 @@ function LiveClassSection({ batch }) {
         </div>
 
         <button
-          onClick={handleJoin}
-          disabled={status.state === "completed"}
+          onClick={buttonAction}
+          disabled={buttonDisabled}
           className="w-full mt-4 py-3 rounded-full text-sm"
-          style={{
-            ...body,
-            fontWeight: 700,
-            background: status.state === "completed" ? L.line : L.green,
-            color: status.state === "completed" ? L.inkSoft : "#FFFFFF",
-          }}
+          style={{ ...body, fontWeight: 700, background: buttonBg, color: buttonColor }}
         >
-          {joined ? "You're checked in ✓" : status.state === "completed" ? "Session Completed" : "Join Live Class"}
+          {buttonLabel}
         </button>
       </div>
     </div>
@@ -1504,6 +1574,9 @@ function HomeScreen({ onOpenWorkshop, onOpenReferralHub, onOpenTimetable, onNav 
 
       {/* 2–3. Today's Practice + weekly timetable link */}
       <TodaysPracticeCard practice={practice} onOpenTimetable={onOpenTimetable} />
+
+      {/* 4. Live session — join (Online) or check-in (Offline) */}
+      <LiveClassSection batch={myBatch} />
 
       {/* 6. Upcoming workshop */}
       <div className="px-5 mt-5">

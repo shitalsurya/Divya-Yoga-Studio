@@ -1,0 +1,29 @@
+Do NOT do a broad codebase exploration pass — the locations below are already confirmed. Read only the specific files/lines listed, then write the changes directly.
+
+Exact locations
+artifacts/divya-yoga/src/main-app.jsx line 651: LIVE_CLASS_MEET_LINK constant — currently one hardcoded Meet link for everything.
+artifacts/divya-yoga/src/main-app.jsx lines 88–92: BATCHES array — batch id 5 ("Evening Online", 7:00–8:00 PM) is the only batch with mode: "Online"; all others are mode: "Offline".
+artifacts/divya-yoga/src/main-app.jsx lines 1036–1093: LiveClassSection component — already built (Join button, opens LIVE_CLASS_MEET_LINK, sets local joined state, calls trackEvent), but this component is never rendered anywhere in the file. Confirm where the home screen's next-session card renders and mount LiveClassSection there.
+lib/db/src/schema/index.ts — currently empty (just commented-out example code). Add tables here.
+artifacts/api-server/src/routes/ — currently only contains health.ts (GET /api/healthz). Add a new route file here.
+lib/api-spec/openapi.yaml — update to match the new route.
+Changes
+
+1. Schema — add to lib/db/src/schema/index.ts:
+
+batches table: id, name, mode (Online/Offline), schedule fields matching the existing BATCHES array shape, plus a new meet_link column (nullable — null for every batch except batch id 5).
+booking_sessions table: id, bookingId, userId, classDate, batchId, status (upcoming / present / missed / workshop).
+
+2. Route — add POST /api/bookings/:sessionId/check-in in artifacts/api-server/src/routes/:
+
+Marks the matching booking_sessions row present.
+Only succeeds if within the check-in window (class start time → +2 hours) and the session belongs to the requesting user; otherwise reject.
+
+3. Frontend — in main-app.jsx:
+
+Replace the hardcoded LIVE_CLASS_MEET_LINK (line 651) with batch.meet_link from the batch record.
+Mount LiveClassSection on the home screen for the user's current/next session (it currently exists but is unused).
+If batch.mode === "Online": keep existing Join behavior, but also call the new check-in endpoint when the user clicks Join (join = check-in, one action).
+If batch.mode === "Offline": render a plain "Check In" button instead (reuse LiveClassSection's structure/styling, not its Meet-join logic). Enabled only inside the check-in window; before it: "Opens 15 min before class"; after it closes unchecked: treat as missed.
+
+Keep this scoped to only these files and changes — do not refactor unrelated code.

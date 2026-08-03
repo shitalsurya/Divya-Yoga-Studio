@@ -135,6 +135,52 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /bookings/{batchId}/check-in:
+    post:
+      operationId: checkInSession
+      tags: [bookings]
+      summary: Check in to today's class for the given batch
+      description: >
+        Resolves the authenticated user's booking_session for today in the given
+        batch and marks it present. The caller passes the batch ID; no session
+        primary key is required. Check-in window: 15 minutes before class start
+        through 2 hours after class start.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Checked in successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckInResponse"
+        "400":
+          description: Outside check-in window or invalid session ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Session does not belong to this user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /whatsapp/add-to-group:
     post:
       operationId: whatsappAddToGroup
@@ -302,6 +348,15 @@ components:
         mobile:
           type: string
       required: [slotId, mobile]
+
+    CheckInResponse:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        status:
+          type: string
+      required: [sessionId, status]
 
     WhatsappAddResponse:
       type: object
