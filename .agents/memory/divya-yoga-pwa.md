@@ -26,15 +26,34 @@ Three files in `src/i18n/`: `en.json`, `hi.json`, `mr.json`. Context in `Languag
 
 **Why:** Explicit sign-in after account creation prevents silent auto-login and teaches users their credentials.
 
+## Enrolled batch lookup (Home screen)
+`selectSlot()` in `prototype.html` now includes `id: el.dataset.id` in `state.slot` so slot IDs ("s1"–"s5") flow through to `divya_yoga_onboarding_data.slot.id` in localStorage and to `POST /api/bookings` as `slotId`.
+`main-app.jsx` has `SLOT_ID_TO_BATCH_ID = { s1:1, s2:2, s3:3, s4:5, s5:4 }` and `getEnrolledBatchId()` that reads from localStorage. `MainApp` derives `enrolledBatchId` on mount and passes it to `HomeScreen` and `BatchDetail` as props.
+
+**Why:** Pre-fix, `selectSlot` set `state.slot = { time, mode, batch }` without `id`, so `state.slot.id` was always undefined → batchId always null in bookings → wrong batch shown on Home screen.
+**Note:** Users who completed onboarding before this fix have `batch_id: null` in their bookings row. They need to re-book to get session generation.
+
 ## Backend (api-server)
-Routes: `POST /api/auth/signup`, `POST /api/auth/signin`, `POST /api/bookings`, `POST /api/payments/mark-paid`, `POST /api/whatsapp/add-to-group`.
+Routes: `POST /api/auth/signup`, `POST /api/auth/signin`, `POST /api/bookings`, `POST /api/payments/mark-paid`, `POST /api/whatsapp/add-to-group`, `GET /api/practice/summary`.
 - Passwords: bcryptjs with 12 rounds. Never store/transmit PIN in plaintext.
 - JWT: jose `HS256`, `SESSION_SECRET` env var, 30-day expiry.
 - Auth middleware: `requireAuth` in `src/middlewares/auth.ts`.
 - WhatsApp: Meta Cloud API v22.0, group IDs from `WA_GROUP_s1`…`WA_GROUP_s5` env vars, token from `WHATSAPP_API_TOKEN`. Failure is non-fatal (returns `{ success: false, reason }` not 500).
 
+## Session generation (booking_sessions)
+`artifacts/api-server/src/lib/session-generator.ts` — `generateUpcomingSessions({ userId, bookingId, batchId, windowDays=28 })`.
+- Generates one `booking_sessions` row per weekday (Mon–Fri, matching TIMETABLE in main-app.jsx) for the next 28 calendar days.
+- Idempotent: queries existing dates in window before inserting, only inserts missing ones.
+- Called from `POST /api/bookings` (blocking) when `slotId` is non-null.
+- Called from `GET /api/practice/summary` as fire-and-forget top-up to keep rolling window fresh.
+
+`artifacts/api-server/src/lib/seed-batches.ts` — seeds s1–s5 into the `batches` table on server startup (`onConflictDoNothing`). Called from `index.ts` before `app.listen`.
+
+**Why:** No cron/scheduled job infrastructure exists; Practice-tab top-up on each view is sufficient for a small studio and keeps infrastructure minimal.
+
 ## DB schema (Drizzle + Postgres)
-Four tables: `users`, `batches`, `bookings`, `payments`. See `lib/db/src/schema/`. Run `pnpm --filter @workspace/db run push` to apply migrations.
+Five tables: `users`, `batches`, `bookings`, `booking_sessions`, `payments`. See `lib/db/src/schema/`. Run `pnpm --filter @workspace/db run push` to apply migrations.
+`batches` rows are seeded at API server startup via `seed-batches.ts` (idempotent). Without these rows the FK on `booking_sessions.batch_id` would block all session inserts.
 
 ## API client setup
 `setAuthTokenGetter(() => getSessionToken())` called in `App.tsx` useEffect so all orval-generated hooks automatically send Bearer tokens. `getSessionToken()` reads from `localStorage.divya_yoga_session`.
@@ -46,7 +65,7 @@ Four tables: `users`, `batches`, `bookings`, `payments`. See `lib/db/src/schema/
 - `divya_yoga_onboarding_complete` — "true" when onboarding done
 - `divya_yoga_session` — JWT session token (replaces old divya_yoga_user as auth signal)
 - `divya_yoga_user` — JSON DivyaUser object (name/mobile/joinedAt)
-- `divya_yoga_onboarding_data` — JSON onboarding selections
+- `divya_yoga_onboarding_data` — JSON onboarding selections including `slot: { id, time, mode, batch }`
 - `divya_yoga_lang` — "en" | "hi" | "mr"
 - `divya_debug` — set to "true" to reveal notification test button
 

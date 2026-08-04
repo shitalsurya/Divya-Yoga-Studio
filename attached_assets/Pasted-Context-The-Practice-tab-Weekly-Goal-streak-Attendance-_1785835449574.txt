@@ -1,0 +1,19 @@
+Context
+
+The Practice tab (Weekly Goal, streak, Attendance Calendar, etc.) reads from booking_sessions, but currently only one row gets created per user at onboarding — there's no ongoing generation of a checkable session for each real class date. Classes run Monday–Friday on a fixed weekly pattern (attached reference: Archana's Divya Yoga Studio weekly timetable, Kothrud, Pune) — each time slot has a specific class type per weekday (e.g. 7:00 PM is Aerobics on Monday, Chandra Namaskar on Tuesday, Sanjeevan on Wednesday/Friday, Surya Namaskar on Thursday).
+
+Step 1 — Check for existing timetable data
+
+The home screen already has a "View Weekly Timetable" link/section. Find where that data lives in main-app.jsx — if the full Mon–Fri × time-slot × class-type schedule is already coded as a constant there, reuse it as the source of truth. Don't re-enter the schedule from scratch if it already exists in the codebase.
+
+Step 2 — Generate recurring sessions
+
+For each batch (identified by its time slot), a class occurs every weekday at that time, with the class type pulled from the weekly timetable for that day. Add logic (a script run at booking time, or a scheduled job — whichever fits the existing setup better, propose which and why) that:
+
+When a user books a batch, generates booking_sessions rows for each upcoming weekday occurrence of that batch's time slot, for a reasonable rolling window (e.g. the next 4 weeks), each with status: 'upcoming' and the correct classDate.
+Keeps generating further-out sessions on an ongoing basis so the window doesn't run dry (e.g. top up to 4 weeks ahead each time the user opens the app, or via a scheduled job if one already exists in this project).
+Step 3 — Confirm
+
+After booking a batch, confirm multiple booking_sessions rows exist (not just one) — one per upcoming weekday class in that batch's slot — and that the Practice tab / check-in flow correctly picks up each date as it arrives.
+
+Keep this scoped to session generation — don't change the check-in logic, Practice tab calculations, or the timetable display itself, those already work.

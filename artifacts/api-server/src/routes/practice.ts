@@ -1,7 +1,9 @@
 import { Router } from "express";
-import { db, bookingSessionsTable, batchesTable, usersTable } from "@workspace/db";
-import { eq, and, gte, asc } from "drizzle-orm";
+import { db, bookingSessionsTable, batchesTable, usersTable, bookingsTable } from "@workspace/db";
+import { eq, and, gte, asc, ne, desc } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
+import { logger } from "../lib/logger.js";
+import { generateUpcomingSessions } from "../lib/session-generator.js";
 
 const router = Router();
 
@@ -66,8 +68,8 @@ router.get("/summary", requireAuth, async (req: AuthRequest, res) => {
   weekStart.setDate(now.getDate() - dow);
   const weekStartStr = weekStart.toISOString().split("T")[0];
 
-  // Parallel fetch: user, all sessions, batches
-  const [userRows, sessions, batchRows] = await Promise.all([
+  // Parallel fetch: user, all sessions, batches, active booking (for top-up).
+  const [userRows, sessions, batchRows, activeBookingRows] = await Promise.all([
     db.select({ onboardingData: usersTable.onboardingData })
       .from(usersTable)
       .where(eq(usersTable.id, userId))
@@ -84,7 +86,24 @@ router.get("/summary", requireAuth, async (req: AuthRequest, res) => {
 
     db.select({ id: batchesTable.id, slotKey: batchesTable.slotKey })
       .from(batchesTable),
+
+    db.select({ id: bookingsTable.id, batchId: bookingsTable.batchId })
+      .from(bookingsTable)
+      .where(and(eq(bookingsTable.userId, userId), ne(bookingsTable.status, "cancelled")))
+      .orderBy(desc(bookingsTable.bookedAt))
+      .limit(1),
   ]);
+
+  // Rolling top-up: fire-and-forget so it doesn't add latency to this response.
+  // The next Practice-tab open will reflect any newly inserted sessions.
+  const activeBooking = activeBookingRows[0];
+  if (activeBooking?.batchId) {
+    generateUpcomingSessions({
+      userId,
+      bookingId: activeBooking.id,
+      batchId: activeBooking.batchId,
+    }).catch(err => logger.warn({ err }, "session top-up failed non-fatally"));
+  }
 
   const user = userRows[0];
   const batchSlot: Record<string, string | null> = Object.fromEntries(

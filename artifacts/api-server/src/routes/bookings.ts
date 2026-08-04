@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { db, bookingsTable } from "@workspace/db";
 import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
+import { generateUpcomingSessions } from "../lib/session-generator.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -37,6 +39,15 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
       amount: amount ?? 0,
     })
     .returning();
+
+  // Generate the next 4 weeks of booking_sessions immediately (non-blocking).
+  if (slotId) {
+    generateUpcomingSessions({
+      userId: req.userId!,
+      bookingId: booking.id,
+      batchId: slotId,
+    }).catch(err => logger.warn({ err }, "initial session generation failed non-fatally"));
+  }
 
   res.status(201).json({ bookingId: booking.id, status: booking.status });
 });
