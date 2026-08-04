@@ -602,7 +602,7 @@
     document.getElementById('cta6').disabled=false;
   }
   function selectSlot(el){
-    state.slot = { time: el.dataset.time, mode: el.dataset.mode || null, batch: el.dataset.batch || null };
+    state.slot = { id: el.dataset.id, time: el.dataset.time, mode: el.dataset.mode || null, batch: el.dataset.batch || null };
     document.querySelectorAll('#slotGridRegular .slot-card, #slotGridPersonal .card').forEach(c=>c.classList.toggle('selected', c===el));
     document.getElementById('cta7').disabled=false;
   }

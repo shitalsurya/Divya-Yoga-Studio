@@ -110,8 +110,27 @@ function todaysFocus(slotKey) {
 const SPECIALISATIONS = ["Weight Loss", "PCOS", "Prenatal", "Fitness"];
 const MODES = ["All", "Offline", "Online"];
 
-// The logged-in member's own enrolled batch, and this week's attendance.
-const ENROLLED_BATCH_ID = 2;
+// Maps the prototype.html slot data-id ("s1"…"s5") to the numeric BATCHES id.
+const SLOT_ID_TO_BATCH_ID = { s1: 1, s2: 2, s3: 3, s4: 5, s5: 4 };
+
+/**
+ * Reads the enrolled batch id from the onboarding data saved in localStorage.
+ * Returns the numeric BATCHES id (1–5), or null if the data is absent / unrecognised.
+ */
+function getEnrolledBatchId() {
+  try {
+    const raw = localStorage.getItem("divya_yoga_onboarding_data");
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    const slotId = data?.slot?.id;
+    return SLOT_ID_TO_BATCH_ID[slotId] ?? null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Fallback numeric batch id used only when onboarding data is absent. */
+const FALLBACK_ENROLLED_BATCH_ID = 2;
 const WEEK_ATTENDANCE = [
   { d: "M", status: "attended" },
   { d: "T", status: "attended" },
@@ -1527,8 +1546,8 @@ function NotificationPreferencesScreen({ prefs, onTogglePref, onClose }) {
 
 // ---- Screens ------------------------------------------------------------
 
-function HomeScreen({ onOpenWorkshop, onOpenReferralHub, onOpenTimetable, onNav }) {
-  const myBatch = BATCHES.find((b) => b.id === ENROLLED_BATCH_ID);
+function HomeScreen({ onOpenWorkshop, onOpenReferralHub, onOpenTimetable, onNav, enrolledBatchId }) {
+  const myBatch = BATCHES.find((b) => b.id === enrolledBatchId) ?? BATCHES.find((b) => b.id === FALLBACK_ENROLLED_BATCH_ID);
   const practice = getTodaysPractice(myBatch.slotKey);
   const nearest = NEAREST_WORKSHOP;
   const full = nearest.seatsLeft === 0;
@@ -2060,10 +2079,11 @@ function ReferralHubScreen({ onClose }) {
   );
 }
 
-function BatchDetail({ batch, onClose }) {
+function BatchDetail({ batch, onClose, enrolledBatchId }) {
   const [state, setState] = useState("view"); // view | confirmed
   const isFull = batch.spots === 0;
-  const isMine = batch.id === ENROLLED_BATCH_ID;
+  const resolvedEnrolledId = enrolledBatchId ?? FALLBACK_ENROLLED_BATCH_ID;
+  const isMine = batch.id === resolvedEnrolledId;
   const focus = todaysFocus(batch.slotKey);
   return (
     <div className="absolute inset-0 flex flex-col" style={{ background: D.bg, zIndex: 30 }}>
@@ -3357,6 +3377,7 @@ const TABS = [
 
 function MainApp() {
   const [tab, setTab] = useState("home");
+  const [enrolledBatchId] = useState(() => getEnrolledBatchId() ?? FALLBACK_ENROLLED_BATCH_ID);
   const [openBatch, setOpenBatch] = useState(null);
   const [openWorkshop, setOpenWorkshop] = useState(null);
   const [profileOverlay, setProfileOverlay] = useState(null); // 'renewal' | 'rules' | 'privacy' | 'terms' | 'about' | 'logout' | null
@@ -3420,6 +3441,7 @@ function MainApp() {
           setShowTimetable(true);
         }}
         onNav={navigate}
+        enrolledBatchId={enrolledBatchId}
       />
     ),
     workshops: <WorkshopsScreen onOpenWorkshop={setOpenWorkshop} onOpenRecordings={() => {}} />,
@@ -3440,7 +3462,7 @@ function MainApp() {
 
       <div className="relative flex-1 flex flex-col overflow-hidden">
           {screens[tab]}
-          {openBatch && <BatchDetail batch={openBatch} onClose={() => setOpenBatch(null)} />}
+          {openBatch && <BatchDetail batch={openBatch} onClose={() => setOpenBatch(null)} enrolledBatchId={enrolledBatchId} />}
           {openWorkshop && (
             <WorkshopDetail workshop={openWorkshop} onClose={() => setOpenWorkshop(null)} onOpenReferralHub={openReferralHub} />
           )}
