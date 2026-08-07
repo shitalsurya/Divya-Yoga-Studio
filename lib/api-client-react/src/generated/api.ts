@@ -21,12 +21,16 @@ import type {
 
 import type {
   AuthResponse,
+  BatchListResponse,
   BookingResponse,
+  CheckInResponse,
   CreateBookingRequest,
+  CurrentBookingResponse,
   ErrorResponse,
   HealthStatus,
   MarkPaidRequest,
   PaymentResponse,
+  PracticeSummaryResponse,
   SigninRequest,
   SigninResponse,
   SignupRequest,
@@ -352,6 +356,160 @@ export const useCreateBooking = <TError = ErrorType<UnauthorizedResponse>,
       return useMutation(getCreateBookingMutationOptions(options));
     }
 
+export const getListBatchesUrl = () => {
+
+
+
+
+  return `/api/batches`
+}
+
+/**
+ * @summary List the studio's real class batches
+ */
+export const listBatches = async ( options?: RequestInit): Promise<BatchListResponse> => {
+
+  return customFetch<BatchListResponse>(getListBatchesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBatchesQueryKey = () => {
+    return [
+    `/api/batches`
+    ] as const;
+    }
+
+
+export const getListBatchesQueryOptions = <TData = Awaited<ReturnType<typeof listBatches>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBatchesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBatches>>> = ({ signal }) => listBatches({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBatchesQueryResult = NonNullable<Awaited<ReturnType<typeof listBatches>>>
+export type ListBatchesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the studio's real class batches
+ */
+
+export function useListBatches<TData = Awaited<ReturnType<typeof listBatches>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBatchesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCurrentBookingUrl = () => {
+
+
+
+
+  return `/api/bookings/current`
+}
+
+/**
+ * @summary Get the authenticated user's current booking and batch
+ */
+export const getCurrentBooking = async ( options?: RequestInit): Promise<CurrentBookingResponse> => {
+
+  return customFetch<CurrentBookingResponse>(getGetCurrentBookingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCurrentBookingQueryKey = () => {
+    return [
+    `/api/bookings/current`
+    ] as const;
+    }
+
+
+export const getGetCurrentBookingQueryOptions = <TData = Awaited<ReturnType<typeof getCurrentBooking>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentBooking>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrentBookingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentBooking>>> = ({ signal }) => getCurrentBooking({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrentBooking>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCurrentBookingQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrentBooking>>>
+export type GetCurrentBookingQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary Get the authenticated user's current booking and batch
+ */
+
+export function useGetCurrentBooking<TData = Awaited<ReturnType<typeof getCurrentBooking>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentBooking>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCurrentBookingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getMarkPaymentPaidUrl = () => {
 
 
@@ -421,6 +579,155 @@ export const useMarkPaymentPaid = <TError = ErrorType<UnauthorizedResponse>,
         TContext
       > => {
       return useMutation(getMarkPaymentPaidMutationOptions(options));
+    }
+
+export const getGetPracticeSummaryUrl = () => {
+
+
+
+
+  return `/api/practice/summary`
+}
+
+/**
+ * @summary Get the authenticated user's practice progress summary
+ */
+export const getPracticeSummary = async ( options?: RequestInit): Promise<PracticeSummaryResponse> => {
+
+  return customFetch<PracticeSummaryResponse>(getGetPracticeSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPracticeSummaryQueryKey = () => {
+    return [
+    `/api/practice/summary`
+    ] as const;
+    }
+
+
+export const getGetPracticeSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getPracticeSummary>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPracticeSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPracticeSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPracticeSummary>>> = ({ signal }) => getPracticeSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPracticeSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPracticeSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getPracticeSummary>>>
+export type GetPracticeSummaryQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary Get the authenticated user's practice progress summary
+ */
+
+export function useGetPracticeSummary<TData = Awaited<ReturnType<typeof getPracticeSummary>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPracticeSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPracticeSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCheckInSessionUrl = (batchId: string,) => {
+
+
+
+
+  return `/api/bookings/${batchId}/check-in`
+}
+
+/**
+ * Resolves the authenticated user's booking_session for today in the given batch and marks it present. The caller passes the batch ID; no session primary key is required. Check-in window: 15 minutes before class start through 2 hours after class start.
+ * @summary Check in to today's class for the given batch
+ */
+export const checkInSession = async (batchId: string, options?: RequestInit): Promise<CheckInResponse> => {
+
+  return customFetch<CheckInResponse>(getCheckInSessionUrl(batchId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckInSessionMutationOptions = <TError = ErrorType<ErrorResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkInSession>>, TError,{batchId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkInSession>>, TError,{batchId: string}, TContext> => {
+
+const mutationKey = ['checkInSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkInSession>>, {batchId: string}> = (props) => {
+          const {batchId} = props ?? {};
+
+          return  checkInSession(batchId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckInSessionMutationResult = NonNullable<Awaited<ReturnType<typeof checkInSession>>>
+
+    export type CheckInSessionMutationError = ErrorType<ErrorResponse | UnauthorizedResponse>
+
+    /**
+ * @summary Check in to today's class for the given batch
+ */
+export const useCheckInSession = <TError = ErrorType<ErrorResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkInSession>>, TError,{batchId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkInSession>>,
+        TError,
+        {batchId: string},
+        TContext
+      > => {
+      return useMutation(getCheckInSessionMutationOptions(options));
     }
 
 export const getWhatsappAddToGroupUrl = () => {

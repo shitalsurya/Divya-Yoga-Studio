@@ -1,0 +1,23 @@
+Do NOT do a codebase exploration or analysis pass. The root causes below are already confirmed from a prior debugging session. Locate only the specific named constants/functions/files below (search by name, not by browsing), then fix directly.
+
+Fix 1 — Check-in always 404s ("No session found")
+
+Confirmed root cause: main-app.jsx has a hardcoded BATCHES constant with numeric ids (1, 2, 3...). The real batches table in the database uses string ids (s1–s5). The frontend sends the numeric id to the check-in endpoint, which can't match it against the database, so check-in always fails.
+
+Fix:
+
+Find the hardcoded BATCHES array in main-app.jsx (search for const BATCHES).
+Delete it. Replace every place that currently reads from this constant with data fetched from the backend's real batches table (there should already be a way to fetch batches, given the batches table already exists and is populated — check artifacts/api-server/src/routes/ for an existing batches route, or add a simple GET /api/batches if none exists).
+Confirm the ids used throughout the frontend now match the database's string ids (s1–s5), not the old numeric ones.
+Test: check in to a real booked session and confirm it succeeds (no more 404 / "No session found").
+Fix 2 — Wrong enrolled batch on sign-in from a new device
+
+Confirmed root cause: after sign-in, the app determines "enrolled batch" from local/session state instead of fetching it fresh from the user's actual booking record in the database — so a new device/session with no local state falls back to a hardcoded default batch instead of the user's real one.
+
+Fix:
+
+Find where the app determines the current user's enrolled batch after sign-in (search for ENROLLED_BATCH_ID or similar, and the sign-in success handler).
+Change it to always fetch the user's actual booking → batch from the backend API immediately after sign-in succeeds, regardless of device or prior local state. Never fall back to a default when a real booking exists in the database.
+Test: sign in as a user with a known booked batch from a fresh session (e.g. incognito window) and confirm the correct batch shows, not a default.
+
+Keep this scoped to exactly these two fixes — do not touch check-in window logic, Practice tab calculations, or recurring session generation, all of which are already correct and working.

@@ -81,17 +81,6 @@ const D = {
 const display = { fontFamily: "Georgia, 'Times New Roman', serif" };
 const body = { fontFamily: "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" };
 
-// ---- Real studio data (from ishika2323.github.io/index) -----------------
-// Every batch is a mixed group — Weight Loss, PCOS, Prenatal & Fitness all
-// practice together in the same slot, with personalised guidance.
-const BATCHES = [
-  { id: 1, time: "6:30 – 7:30 AM", slotKey: "6:30 AM", label: "Morning Batch", days: "Mon–Sat", mode: "Offline", spots: 4, total: 15 },
-  { id: 2, time: "7:30 – 8:30 AM", slotKey: "7:30 AM", label: "Morning Batch", days: "Mon–Sat", mode: "Offline", spots: 3, total: 15 },
-  { id: 3, time: "8:30 – 9:30 AM", slotKey: "8:30 AM", label: "Morning Batch", days: "Mon–Sat", mode: "Offline", spots: 6, total: 15 },
-  { id: 4, time: "5:30 – 6:30 PM", slotKey: "5:30 PM", label: "Evening Batch", days: "Mon–Sat", mode: "Offline", spots: 0, total: 15 },
-  { id: 5, time: "7:00 – 8:00 PM", slotKey: "7:00 PM", label: "Evening Online", days: "Mon–Sat", mode: "Online", spots: 11, total: 20, meetLink: "https://meet.google.com/abc-defg-hij" },
-];
-
 // Weekly exercise sequence per day/slot, from Archana's printed timetable.
 const TIMETABLE = {
   Monday: { "6:30 AM": "Aerobics", "7:30 AM": "Surya Namaskar", "8:30 AM": "Chandra Namaskar", "5:30 PM": "Sanjeevan", "7:00 PM": "Aerobics" },
@@ -109,28 +98,6 @@ function todaysFocus(slotKey) {
 
 const SPECIALISATIONS = ["Weight Loss", "PCOS", "Prenatal", "Fitness"];
 const MODES = ["All", "Offline", "Online"];
-
-// Maps the prototype.html slot data-id ("s1"…"s5") to the numeric BATCHES id.
-const SLOT_ID_TO_BATCH_ID = { s1: 1, s2: 2, s3: 3, s4: 5, s5: 4 };
-
-/**
- * Reads the enrolled batch id from the onboarding data saved in localStorage.
- * Returns the numeric BATCHES id (1–5), or null if the data is absent / unrecognised.
- */
-function getEnrolledBatchId() {
-  try {
-    const raw = localStorage.getItem("divya_yoga_onboarding_data");
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    const slotId = data?.slot?.id;
-    return SLOT_ID_TO_BATCH_ID[slotId] ?? null;
-  } catch (_) {
-    return null;
-  }
-}
-
-/** Fallback numeric batch id used only when onboarding data is absent. */
-const FALLBACK_ENROLLED_BATCH_ID = 2;
 const WEEK_ATTENDANCE = [
   { d: "M", status: "attended" },
   { d: "T", status: "attended" },
@@ -1546,8 +1513,20 @@ function NotificationPreferencesScreen({ prefs, onTogglePref, onClose }) {
 
 // ---- Screens ------------------------------------------------------------
 
-function HomeScreen({ onOpenWorkshop, onOpenReferralHub, onOpenTimetable, onNav, enrolledBatchId }) {
-  const myBatch = BATCHES.find((b) => b.id === enrolledBatchId) ?? BATCHES.find((b) => b.id === FALLBACK_ENROLLED_BATCH_ID);
+function HomeScreen({ onOpenWorkshop, onOpenReferralHub, onOpenTimetable, onNav, batches, enrolledBatchId }) {
+  const myBatch = batches.find((b) => b.id === enrolledBatchId);
+  if (!myBatch) {
+    return (
+      <div className="flex-1 flex items-center justify-center px-6 text-center" style={{ background: L.bg }}>
+        <div>
+          <p style={{ ...display, color: L.ink, fontSize: 20 }}>Your batch is unavailable</p>
+          <p style={{ ...body, color: L.inkSoft, fontSize: 13, marginTop: 8 }}>
+            We couldn't find an active booking for this account.
+          </p>
+        </div>
+      </div>
+    );
+  }
   const practice = getTodaysPractice(myBatch.slotKey);
   const nearest = NEAREST_WORKSHOP;
   const full = nearest.seatsLeft === 0;
@@ -2082,8 +2061,7 @@ function ReferralHubScreen({ onClose }) {
 function BatchDetail({ batch, onClose, enrolledBatchId }) {
   const [state, setState] = useState("view"); // view | confirmed
   const isFull = batch.spots === 0;
-  const resolvedEnrolledId = enrolledBatchId ?? FALLBACK_ENROLLED_BATCH_ID;
-  const isMine = batch.id === resolvedEnrolledId;
+  const isMine = batch.id === enrolledBatchId;
   const focus = todaysFocus(batch.slotKey);
   return (
     <div className="absolute inset-0 flex flex-col" style={{ background: D.bg, zIndex: 30 }}>
@@ -2169,11 +2147,11 @@ function BatchDetail({ batch, onClose, enrolledBatchId }) {
 // Batch-switching, moved out of the main tab bar and into Profile → Membership.
 // Same dark "Choose Your Preferred Time" treatment as before, now reached
 // only when a member actually wants to change their slot.
-function BatchScheduleScreen({ onOpenBatch, onClose }) {
+function BatchScheduleScreen({ onOpenBatch, onClose, batches }) {
   const [mode, setMode] = useState("All");
   const [dayIdx, setDayIdx] = useState(2);
   const days = ["S", "M", "T", "W", "T", "F", "S"];
-  const shown = BATCHES.filter((c) => mode === "All" || c.mode === mode);
+  const shown = batches.filter((c) => mode === "All" || c.mode === mode);
 
   return (
     <div className="absolute inset-0 flex flex-col" style={{ background: D.bg, zIndex: 30 }}>
@@ -3377,7 +3355,9 @@ const TABS = [
 
 function MainApp() {
   const [tab, setTab] = useState("home");
-  const [enrolledBatchId] = useState(() => getEnrolledBatchId() ?? FALLBACK_ENROLLED_BATCH_ID);
+  const [batches, setBatches] = useState([]);
+  const [enrolledBatchId, setEnrolledBatchId] = useState(null);
+  const [batchLoadError, setBatchLoadError] = useState(null);
   const [openBatch, setOpenBatch] = useState(null);
   const [openWorkshop, setOpenWorkshop] = useState(null);
   const [profileOverlay, setProfileOverlay] = useState(null); // 'renewal' | 'rules' | 'privacy' | 'terms' | 'about' | 'logout' | null
@@ -3389,6 +3369,57 @@ function MainApp() {
     Object.fromEntries(NOTIFICATION_CATEGORIES.map((c) => [c.id, c.defaultEnabled]))
   );
   const [readNotificationIds, setReadNotificationIds] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAccountBatches() {
+      const token = localStorage.getItem("divya_yoga_session");
+      if (!token) {
+        if (!cancelled) setBatchLoadError("Your session has expired. Please sign in again.");
+        return;
+      }
+
+      try {
+        const [batchesResponse, bookingResponse] = await Promise.all([
+          fetch("/api/batches"),
+          fetch("/api/bookings/current", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+        if (!batchesResponse.ok || !bookingResponse.ok) {
+          throw new Error("Unable to load account batches");
+        }
+
+        const [{ batches: realBatches }, currentBooking] = await Promise.all([
+          batchesResponse.json(),
+          bookingResponse.json(),
+        ]);
+
+        if (!cancelled) {
+          setBatches(
+            (realBatches ?? []).map((batch) => ({
+              ...batch,
+              time: batch.schedule.replace(/^.*?\s/, "").replace("–", " – "),
+              label: batch.name.replace(/\s+\d.*$/, ""),
+              mode: batch.mode === "online" ? "Online" : "Offline",
+              spots: batch.capacity,
+              total: batch.capacity,
+            })),
+          );
+          setEnrolledBatchId(currentBooking.batch?.id ?? null);
+          setBatchLoadError(null);
+        }
+      } catch (_) {
+        if (!cancelled) setBatchLoadError("We couldn't load your batch. Please try again.");
+      }
+    }
+
+    loadAccountBatches();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const closeOverlays = () => {
     setOpenBatch(null);
@@ -3431,6 +3462,24 @@ function MainApp() {
   const unreadCount = NOTIFICATION_FEED.filter((n) => notificationPrefs[n.category] && !readNotificationIds.includes(n.feedId)).length;
   const { translate } = useLanguage();
 
+  if (batchLoadError) {
+    return (
+      <div className="flex flex-col items-center justify-center px-6 text-center" style={{ height: "100dvh", background: L.bg }}>
+        <p style={{ ...display, color: L.ink, fontSize: 20 }}>Something went wrong</p>
+        <p style={{ ...body, color: L.inkSoft, fontSize: 13, marginTop: 8 }}>{batchLoadError}</p>
+      </div>
+    );
+  }
+
+  if (batches.length === 0 || enrolledBatchId === null) {
+    return (
+      <div className="flex flex-col items-center justify-center px-6 text-center" style={{ height: "100dvh", background: L.bg }}>
+        <p style={{ ...display, color: L.ink, fontSize: 20 }}>Loading your batch…</p>
+        <p style={{ ...body, color: L.inkSoft, fontSize: 13, marginTop: 8 }}>Fetching your studio schedule.</p>
+      </div>
+    );
+  }
+
   const screens = {
     home: (
       <HomeScreen
@@ -3441,6 +3490,7 @@ function MainApp() {
           setShowTimetable(true);
         }}
         onNav={navigate}
+        batches={batches}
         enrolledBatchId={enrolledBatchId}
       />
     ),

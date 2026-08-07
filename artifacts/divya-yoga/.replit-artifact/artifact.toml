@@ -1,6 +1,7 @@
 kind = "web"
 previewPath = "/"
 title = "Archana's Divya Yoga Studio"
+description = "PWA for Archana's Divya Yoga Studio — personalized onboarding flow, main yoga app, push notifications, i18n (EN/HI/MR), installable as a PWA."
 version = "1.0.0"
 id = "artifacts/divya-yoga"
 router = "path"

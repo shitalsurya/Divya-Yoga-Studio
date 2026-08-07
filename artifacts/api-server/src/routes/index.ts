@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import healthRouter from "./health.js";
 import authRouter from "./auth.js";
 import bookingsRouter from "./bookings.js";
+import batchesRouter from "./batches.js";
 import checkInRouter from "./check-in.js";
 import paymentsRouter from "./payments.js";
 import practiceRouter from "./practice.js";
@@ -11,6 +12,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use("/auth", authRouter);
+router.use("/batches", batchesRouter);
 router.use("/bookings", bookingsRouter);
 router.use("/bookings", checkInRouter);
 router.use("/payments", paymentsRouter);

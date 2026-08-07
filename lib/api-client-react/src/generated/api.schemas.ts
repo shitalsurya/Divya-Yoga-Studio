@@ -64,6 +64,32 @@ export interface BookingResponse {
   status: string;
 }
 
+export interface Batch {
+  id: string;
+  name: string;
+  schedule: string;
+  mode: string;
+  capacity: number;
+  /** @nullable */
+  slotKey: string | null;
+  /** @nullable */
+  days: string | null;
+  /** @nullable */
+  meetLink: string | null;
+}
+
+export interface BatchListResponse {
+  batches: Batch[];
+}
+
+export interface CurrentBookingResponse {
+  /** @nullable */
+  bookingId: number | null;
+  /** @nullable */
+  status: string | null;
+  batch: Batch | null;
+}
+
 export interface MarkPaidRequest {
   bookingId: number;
   amount: number;
@@ -78,6 +104,56 @@ export interface PaymentResponse {
 export interface WhatsappAddRequest {
   slotId: string;
   mobile: string;
+}
+
+export type PracticeSummaryResponseWeeklyGoal = {
+  completed: number;
+  target: number;
+};
+
+export type PracticeSummaryResponseMonthlyAttendance = {
+  completed: number;
+  total: number;
+};
+
+export type PracticeSummaryResponseLevel = {
+  level: number;
+  label: string;
+};
+
+export type PracticeSummaryResponseGoalJourney = {
+  goal: string;
+  progress: number;
+  weeklyTarget: number;
+  monthlyTarget: number;
+};
+
+export type PracticeSummaryResponseMilestonesItem = {
+  current: number;
+  target: number;
+  unit: string;
+  unlock: string;
+};
+
+export type PracticeSummaryResponseAttendanceCalendarItem = {
+  day: number;
+  status: string;
+};
+
+export interface PracticeSummaryResponse {
+  weeklyGoal: PracticeSummaryResponseWeeklyGoal;
+  streak: number;
+  monthlyAttendance: PracticeSummaryResponseMonthlyAttendance;
+  level: PracticeSummaryResponseLevel;
+  goalJourney: PracticeSummaryResponseGoalJourney;
+  monthlyInsights: string[];
+  milestones: PracticeSummaryResponseMilestonesItem[];
+  attendanceCalendar: PracticeSummaryResponseAttendanceCalendarItem[];
+}
+
+export interface CheckInResponse {
+  sessionId: number;
+  status: string;
 }
 
 export type WhatsappAddResponseData = { [key: string]: unknown };

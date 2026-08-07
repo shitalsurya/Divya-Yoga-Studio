@@ -74,6 +74,42 @@ export const CreateBookingResponse = zod.object({
 
 
 /**
+ * @summary List the studio's real class batches
+ */
+export const ListBatchesResponse = zod.object({
+  "batches": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "schedule": zod.string(),
+  "mode": zod.string(),
+  "capacity": zod.number(),
+  "slotKey": zod.string().nullable(),
+  "days": zod.string().nullable(),
+  "meetLink": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Get the authenticated user's current booking and batch
+ */
+export const GetCurrentBookingResponse = zod.object({
+  "bookingId": zod.number().nullable(),
+  "status": zod.string().nullable(),
+  "batch": zod.union([zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "schedule": zod.string(),
+  "mode": zod.string(),
+  "capacity": zod.number(),
+  "slotKey": zod.string().nullable(),
+  "days": zod.string().nullable(),
+  "meetLink": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
  * @summary Self-report a UPI payment as completed
  */
 export const MarkPaymentPaidBody = zod.object({
@@ -84,6 +120,57 @@ export const MarkPaymentPaidBody = zod.object({
 
 export const MarkPaymentPaidResponse = zod.object({
   "paymentId": zod.number(),
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Get the authenticated user's practice progress summary
+ */
+export const GetPracticeSummaryResponse = zod.object({
+  "weeklyGoal": zod.object({
+  "completed": zod.number(),
+  "target": zod.number()
+}),
+  "streak": zod.number(),
+  "monthlyAttendance": zod.object({
+  "completed": zod.number(),
+  "total": zod.number()
+}),
+  "level": zod.object({
+  "level": zod.number(),
+  "label": zod.string()
+}),
+  "goalJourney": zod.object({
+  "goal": zod.string(),
+  "progress": zod.number(),
+  "weeklyTarget": zod.number(),
+  "monthlyTarget": zod.number()
+}),
+  "monthlyInsights": zod.array(zod.string()),
+  "milestones": zod.array(zod.object({
+  "current": zod.number(),
+  "target": zod.number(),
+  "unit": zod.string(),
+  "unlock": zod.string()
+})),
+  "attendanceCalendar": zod.array(zod.object({
+  "day": zod.number(),
+  "status": zod.string()
+}))
+})
+
+
+/**
+ * Resolves the authenticated user's booking_session for today in the given batch and marks it present. The caller passes the batch ID; no session primary key is required. Check-in window: 15 minutes before class start through 2 hours after class start.
+ * @summary Check in to today's class for the given batch
+ */
+export const CheckInSessionParams = zod.object({
+  "batchId": zod.coerce.string()
+})
+
+export const CheckInSessionResponse = zod.object({
+  "sessionId": zod.number(),
   "status": zod.string()
 })
 

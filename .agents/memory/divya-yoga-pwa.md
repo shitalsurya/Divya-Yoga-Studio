@@ -27,11 +27,9 @@ Three files in `src/i18n/`: `en.json`, `hi.json`, `mr.json`. Context in `Languag
 **Why:** Explicit sign-in after account creation prevents silent auto-login and teaches users their credentials.
 
 ## Enrolled batch lookup (Home screen)
-`selectSlot()` in `prototype.html` now includes `id: el.dataset.id` in `state.slot` so slot IDs ("s1"–"s5") flow through to `divya_yoga_onboarding_data.slot.id` in localStorage and to `POST /api/bookings` as `slotId`.
-`main-app.jsx` has `SLOT_ID_TO_BATCH_ID = { s1:1, s2:2, s3:3, s4:5, s5:4 }` and `getEnrolledBatchId()` that reads from localStorage. `MainApp` derives `enrolledBatchId` on mount and passes it to `HomeScreen` and `BatchDetail` as props.
+`MainApp` loads the real batch rows from `GET /api/batches` and the authenticated user's current booking from `GET /api/bookings/current`. Batch IDs remain the database's string IDs (`s1`–`s5`) throughout the frontend and check-in requests; there is no local-storage-to-numeric mapping or default batch.
 
-**Why:** Pre-fix, `selectSlot` set `state.slot = { time, mode, batch }` without `id`, so `state.slot.id` was always undefined → batchId always null in bookings → wrong batch shown on Home screen.
-**Note:** Users who completed onboarding before this fix have `batch_id: null` in their bookings row. They need to re-book to get session generation.
+**Why:** The database uses string batch IDs, so deriving enrollment from a hardcoded numeric batch list caused check-in requests and new-device sign-ins to target the wrong batch.
 
 ## Backend (api-server)
 Routes: `POST /api/auth/signup`, `POST /api/auth/signin`, `POST /api/bookings`, `POST /api/payments/mark-paid`, `POST /api/whatsapp/add-to-group`, `GET /api/practice/summary`.

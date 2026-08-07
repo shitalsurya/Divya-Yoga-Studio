@@ -7,12 +7,23 @@
  */
 
 export * from './authResponse';
+export * from './batch';
+export * from './batchListResponse';
 export * from './bookingResponse';
+export * from './checkInResponse';
 export * from './createBookingRequest';
+export * from './currentBookingResponse';
 export * from './errorResponse';
 export * from './healthStatus';
 export * from './markPaidRequest';
 export * from './paymentResponse';
+export * from './practiceSummaryResponse';
+export * from './practiceSummaryResponseAttendanceCalendarItem';
+export * from './practiceSummaryResponseGoalJourney';
+export * from './practiceSummaryResponseLevel';
+export * from './practiceSummaryResponseMilestonesItem';
+export * from './practiceSummaryResponseMonthlyAttendance';
+export * from './practiceSummaryResponseWeeklyGoal';
 export * from './signinRequest';
 export * from './signinResponse';
 export * from './signinResponseUser';
