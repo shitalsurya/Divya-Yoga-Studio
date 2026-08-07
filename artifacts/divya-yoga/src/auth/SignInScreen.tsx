@@ -34,6 +34,7 @@ export function clearSession(): void {
 
 interface Props {
   onSignedIn: (user: DivyaUser) => void;
+  onBackToOnboarding: () => void;
   /** Mobile pre-filled from the onboarding postMessage payload */
   prefillMobile?: string | null;
 }
@@ -53,7 +54,7 @@ const C = {
 
 const MOBILE_RE = /^[6-9]\d{9}$/;
 
-export default function SignInScreen({ onSignedIn, prefillMobile }: Props) {
+export default function SignInScreen({ onSignedIn, onBackToOnboarding, prefillMobile }: Props) {
   const [mobile, setMobile] = useState(prefillMobile ?? '');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -230,6 +231,24 @@ export default function SignInScreen({ onSignedIn, prefillMobile }: Props) {
         >
           New student? Complete the onboarding flow to create your account.
         </p>
+        <button
+          type="button"
+          onClick={onBackToOnboarding}
+          style={{
+            display: 'block',
+            margin: '8px auto 0',
+            border: 'none',
+            background: 'transparent',
+            color: C.green,
+            fontSize: 12,
+            fontWeight: 700,
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          Start onboarding from step 1
+        </button>
       </div>
     </div>
   );

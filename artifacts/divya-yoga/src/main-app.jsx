@@ -1513,7 +1513,7 @@ function NotificationPreferencesScreen({ prefs, onTogglePref, onClose }) {
 
 // ---- Screens ------------------------------------------------------------
 
-function HomeScreen({ onOpenWorkshop, onOpenReferralHub, onOpenTimetable, onNav, batches, enrolledBatchId }) {
+function HomeScreen({ onOpenWorkshop, onOpenReferralHub, onOpenTimetable, onNav, batches, enrolledBatchId, user }) {
   const myBatch = batches.find((b) => b.id === enrolledBatchId);
   if (!myBatch) {
     return (
@@ -1540,7 +1540,9 @@ function HomeScreen({ onOpenWorkshop, onOpenReferralHub, onOpenTimetable, onNav,
       {/* 1. Greeting header */}
       <div className="px-5 pt-4">
         <p style={{ ...body, color: L.green, fontSize: 11, letterSpacing: 1.5, fontWeight: 600 }}>KOTHRUD, PUNE</p>
-        <h1 style={{ ...display, color: L.ink, fontSize: 24, marginTop: 4 }}>Good Morning, Shital 🌞</h1>
+        <h1 style={{ ...display, color: L.ink, fontSize: 24, marginTop: 4 }}>
+          Welcome, {user?.name || "there"}
+        </h1>
       </div>
 
       {/* 2–3. Today's Practice + weekly timetable link */}
@@ -3353,7 +3355,7 @@ const TABS = [
   { id: "profile", label: "Profile", icon: User },
 ];
 
-function MainApp() {
+function MainApp({ user }) {
   const [tab, setTab] = useState("home");
   const [batches, setBatches] = useState([]);
   const [enrolledBatchId, setEnrolledBatchId] = useState(null);
@@ -3492,6 +3494,7 @@ function MainApp() {
         onNav={navigate}
         batches={batches}
         enrolledBatchId={enrolledBatchId}
+        user={user}
       />
     ),
     workshops: <WorkshopsScreen onOpenWorkshop={setOpenWorkshop} onOpenRecordings={() => {}} />,

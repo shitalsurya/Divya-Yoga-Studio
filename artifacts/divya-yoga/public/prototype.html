@@ -176,7 +176,7 @@
   .payment-card{ background:#fff; border:1.6px solid var(--line); border-radius:20px; padding:20px; margin:6px 0; text-align:center; }
   .payment-label{ font-size:10.5px; font-weight:700; color:var(--mutedsage); letter-spacing:.04em; text-transform:uppercase; margin-bottom:14px; }
   .qr-wrap{ display:flex; justify-content:center; margin:10px 0; background:#F4EDE1; border-radius:14px; padding:16px; }
-  #upiQr{ display:block; }
+   #upiQr{ display:block; width:240px; max-width:100%; height:auto; border-radius:12px; }
   .upi-amount{ font-family:'Fraunces',serif; font-size:28px; font-weight:600; color:var(--olive-dark); margin:10px 0 2px; }
   .upi-plan-label{ font-size:11px; color:var(--mutedsage); margin-bottom:8px; }
   .upi-caption{ font-size:10.5px; color:var(--mutedsage); margin:4px 0 12px; letter-spacing:.01em; }
@@ -185,7 +185,6 @@
   .upi-id-text{ font-size:13px; font-weight:700; color:var(--olive-dark); font-family:'Courier New',monospace; letter-spacing:.03em; }
   .copy-badge{ font-size:11px; color:var(--sage); font-weight:700; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -211,7 +210,7 @@
         <div class="trust-strip">12+ Years &nbsp;·&nbsp; 1000+ Students &nbsp;·&nbsp; Certified Practitioner</div>
         <div class="spacer"></div>
         <button class="ctaBtn" onclick="goTo(2)">Get Started →</button>
-        <button class="ghostBtn">Already a student? Sign in</button>
+        <button class="ghostBtn" onclick="openSignIn()">Already a student? Sign in</button>
       </div>
 
       <!-- SCREEN 2 : CLASS TYPE -->
@@ -458,12 +457,14 @@
         <p class="scr-sub">Scan the QR code with any UPI app, or copy the UPI ID below.</p>
         <div class="payment-card">
           <div class="payment-label">💳 Payment via UPI</div>
-          <div class="qr-wrap">
-            <canvas id="upiQr"></canvas>
-          </div>
+          <div style="font-size:11px;color:var(--mutedsage);font-weight:700;margin-top:2px;">Amount to pay</div>
           <div class="upi-amount" id="payAmount">₹0</div>
           <div class="upi-plan-label" id="payPlan"></div>
-          <div class="upi-caption">BHIM · PhonePe · Google Pay · Paytm</div>
+          <div class="qr-wrap">
+            <img id="upiQr" src="payment-qr.png" alt="Static UPI payment QR code" />
+          </div>
+           <div class="upi-caption">UPI ID: 9356681834@okbizaxis</div>
+           <div class="upi-caption">BHIM · PhonePe · Google Pay · Paytm</div>
           <div class="upi-id-pill" onclick="copyUpiId()">
             <span class="upi-id-text">9356681834@okbizaxis</span>
             <span class="copy-badge">📋 Copy</span>
@@ -473,7 +474,7 @@
         <div class="notes-box" style="margin-top:12px;"><b>After payment</b>Tap the button below. Your booking will be confirmed once our team verifies the payment within 24 hours.</div>
         <div class="spacer"></div>
         <button class="ctaBtn" onclick="goTo(12)">I've completed payment →</button>
-        <button class="ghostBtn">Having trouble? Chat with us on WhatsApp</button>
+        <a class="ghostBtn" href="https://wa.me/919356681834" target="_blank" rel="noopener noreferrer">Having trouble? Chat with us on WhatsApp</a>
       </div>
 
       <!-- SCREEN 12 : CONFIRMATION -->
@@ -681,15 +682,10 @@
     document.getElementById('payAmount').textContent = '₹' + amount.toLocaleString('en-IN');
     document.getElementById('payPlan').textContent = planLabel;
 
-    const UPI_ID = '9356681834@okbizaxis';
-    const tn = encodeURIComponent(planLabel);
-    const upiLink = `upi://pay?pa=${UPI_ID}&pn=Divya%20Yoga%20Studio&am=${amount}&cu=INR&tn=${tn}`;
-
-    const canvas = document.getElementById('upiQr');
-    QRCode.toCanvas(canvas, upiLink, { width: 200, margin: 1, color:{ dark:'#39461f', light:'#F4EDE1' } }, function(err){
-      if(err) console.error('QR error:', err);
-    });
   }
+   function openSignIn(){
+     window.parent.postMessage({ type: 'divya-yoga-open-signin' }, window.location.origin);
+   }
   function copyUpiId(){
     const upiId = '9356681834@okbizaxis';
     const confirm = document.getElementById('copyConfirm');

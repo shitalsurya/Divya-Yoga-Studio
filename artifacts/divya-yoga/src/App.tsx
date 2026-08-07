@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import MainApp from './main-app';
 import SignInScreen, {
   getSessionToken,
+  getStoredUser,
   storeSession,
   type DivyaUser,
 } from './auth/SignInScreen';
@@ -29,6 +30,7 @@ function deriveInitialState(): AppState {
 function App() {
   const [appState, setAppState] = useState<AppState>(deriveInitialState);
   const [onboardingData, setOnboardingData] = useState<Record<string, unknown> | null>(null);
+  const [signedInUser, setSignedInUser] = useState<DivyaUser | null>(getStoredUser);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
 
   // Register the session token getter so all generated API hooks send Bearer tokens.
@@ -49,6 +51,10 @@ function App() {
   useEffect(() => {
     const handleOnboardingMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'divya-yoga-open-signin') {
+        setAppState('signin');
+        return;
+      }
       if (event.data?.type !== ONBOARDING_COMPLETE_MESSAGE) return;
 
       window.localStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
@@ -68,8 +74,13 @@ function App() {
     return () => window.removeEventListener('message', handleOnboardingMessage);
   }, []);
 
-  const handleSignedIn = (_user: DivyaUser) => {
+  const handleSignedIn = (user: DivyaUser) => {
+    setSignedInUser(user);
     setAppState('app');
+  };
+
+  const returnToOnboarding = () => {
+    setAppState('onboarding');
   };
 
   const installApp = async () => {
@@ -96,12 +107,16 @@ function App() {
       )}
 
       {appState === 'signin' && (
-        <SignInScreen onSignedIn={handleSignedIn} prefillMobile={prefillMobile} />
+        <SignInScreen
+          onSignedIn={handleSignedIn}
+          onBackToOnboarding={returnToOnboarding}
+          prefillMobile={prefillMobile}
+        />
       )}
 
       {appState === 'app' && (
         <main className="prototype-shell">
-          <MainApp />
+          <MainApp user={signedInUser} />
         </main>
       )}
 
